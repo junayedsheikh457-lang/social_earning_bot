@@ -10,7 +10,7 @@ from telegram.ext import (
 )
 
 # ================== CONFIG ==================
-BOT_TOKEN = "এখানে_তোমার_বট_টোকেন_দাও"
+BOT_TOKEN = "8215167485:AAEdSM9LtEii_tHx1roxW7Wg7ZvUiuj8oJI"
 ADMIN_ID = 5851334722
 
 BKASH_NUMBER = "01600170756"
