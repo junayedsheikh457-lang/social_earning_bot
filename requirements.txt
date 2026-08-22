@@ -1,0 +1,3 @@
+pytelegrambotapi
+flask
+gunicorn
