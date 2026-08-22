@@ -4,7 +4,6 @@ from flask import Flask, jsonify, request, render_template_string
 import telebot
 from telebot import types
 
-# ===== CONFIG =====
 TOKEN = os.getenv("TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID", "0"))
 PORT = int(os.getenv("PORT", 5000))
@@ -14,7 +13,6 @@ app = Flask(__name__)
 conn = sqlite3.connect('tasks.db', check_same_thread=False)
 c = conn.cursor()
 
-# ===== DATABASE =====
 c.execute('''CREATE TABLE IF NOT EXISTS users (user_id INTEGER PRIMARY KEY, balance INTEGER DEFAULT 0, username TEXT)''')
 c.execute('''CREATE TABLE IF NOT EXISTS tasks (id INTEGER PRIMARY KEY AUTOINCREMENT, creator_id INTEGER, title TEXT, reward INTEGER, requirement TEXT, status TEXT DEFAULT 'open', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
 c.execute('''CREATE TABLE IF NOT EXISTS submissions (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER, user_id INTEGER, proof TEXT, status TEXT DEFAULT 'pending', created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
@@ -23,7 +21,6 @@ c.execute('''CREATE TABLE IF NOT EXISTS withdrawals (id INTEGER PRIMARY KEY AUTO
 c.execute('''CREATE TABLE IF NOT EXISTS admin_balance (id INTEGER PRIMARY KEY DEFAULT 1, balance INTEGER DEFAULT 0)''')
 conn.commit()
 
-# ===== HELPER =====
 def get_balance(uid):
     c.execute("INSERT OR IGNORE INTO users(user_id, username) VALUES (?,?)", (uid, f"user_{uid}"))
     conn.commit()
@@ -33,7 +30,6 @@ def get_balance(uid):
 def is_admin(uid):
     return uid == ADMIN_ID
 
-# ===== MINI APP HTML =====
 HTML = '''<!DOCTYPE html>
 <html>
 <head>
@@ -68,7 +64,7 @@ button.main:disabled{background:#475569}
   <h3>নতুন টাস্ক</h3>
   <input id="tTitle" placeholder="টাস্কের নাম">
   <input id="tReward" type="number" placeholder="রিওয়ার্ড টাকা">
-  <textarea id="tReq" placeholder="রিকোয়ারমেন্ট - যেমন: ইউটিউব সাব করে SS দাও"></textarea>
+  <textarea id="tReq" placeholder="রিকোয়ারমেন্ট"></textarea>
   <p id="fee" style="color:#94a3b8;font-size:13px"></p>
   <button class="main" id="createBtn" onclick="createTask()">টাস্ক বানাও</button>
 </div>
@@ -103,7 +99,4 @@ let tg = window.Telegram.WebApp; tg.expand(); tg.enableClosingConfirmation();
 let uid = tg.initDataUnsafe.user.id;
 
 function load(){
-  fetch('/api/balance?uid='+uid).then(r=>r.json()).then(d=>{
-    document.getElementById('bal').innerText='৳'+d.balance;
-  });
-  fetch('/api/tasks?uid='+uid).then(r=>r.jso
+  fetch('/api/balance?uid='+uid).then(r=>r.json()).th
