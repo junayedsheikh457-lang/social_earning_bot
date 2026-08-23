@@ -4,13 +4,17 @@ import asyncio
 from datetime import datetime
 from flask import Flask, request, send_from_directory, jsonify
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
-from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters
+from telegram.ext import Application, CommandHandler, ContextTypes, MessageHandler, filters, CallbackQueryHandler
 
 # ================== CONFIG ==================
 TOKEN = os.environ.get("BOT_TOKEN")
 PORT = int(os.environ.get("PORT", 8000))
 APP_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
-ADMIN_IDS = [int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x.strip().isdigit()]
+
+# Admin ID (তোমার দেওয়া ID + env থেকেও নিতে পারবে)
+DEFAULT_ADMIN = 5851334722
+env_admins = [int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x.strip().isdigit()]
+ADMIN_IDS = list(set([DEFAULT_ADMIN] + env_admins))
 
 BKASH_NUMBER = "01600170756"
 NAGAD_NUMBER = "01727332914"
@@ -103,6 +107,11 @@ def get_or_create_user(telegram_id, username=None, full_name=None):
         conn.commit()
         c.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
         user = c.fetchone()
+    else:
+        # Admin ID আপডেট রাখার জন্য
+        if telegram_id in ADMIN_IDS and user["is_admin"] == 0:
+            c.execute("UPDATE users SET is_admin = 1 WHERE telegram_id = ?", (telegram_id,))
+            conn.commit()
     conn.close()
     return dict(user) if user else None
 
@@ -177,14 +186,173 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Pending Deposits: {pending_deposits}\n"
         f"Pending Withdraws: {pending_withdraws}\n\n"
         f"কমান্ডসমূহ:\n"
-        f"/pending_tasks - Task Approve\n"
-        f"/pending_deposits - Deposit Approve\n"
-        f"/pending_withdraws - Withdraw Approve"
+        f"/pending_tasks - Task Approve করুন\n"
+        f"/pending_deposits - Deposit Approve করুন\n"
+        f"/pending_withdraws - Withdraw Approve করুন"
     )
     await update.message.reply_text(text)
 
+async def pending_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("আপনি Admin নন।")
+        return
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT t.*, u.full_name FROM tasks t JOIN users u ON t.creator_id = u.telegram_id WHERE t.status = 'pending' ORDER BY t.id ASC LIMIT 10")
+    tasks = c.fetchall()
+    conn.close()
+
+    if not tasks:
+        await update.message.reply_text("কোনো Pending Task নেই।")
+        return
+
+    for t in tasks:
+        text = (
+            f"📋 Task #{t['id']}\n"
+            f"Title: {t['title']}\n"
+            f"Desc: {t['description']}\n"
+            f"Price: ৳{t['price']}\n"
+            f"Slots: {t['total_slots']}\n"
+            f"Creator: {t['full_name']} ({t['creator_id']})\n"
+        )
+        keyboard = [[
+            InlineKeyboardButton("✅ Approve", callback_data=f"approve_task_{t['id']}"),
+            InlineKeyboardButton("❌ Reject", callback_data=f"reject_task_{t['id']}")
+        ]]
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def pending_deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("আপনি Admin নন।")
+        return
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT d.*, u.full_name FROM deposits d JOIN users u ON d.user_id = u.telegram_id WHERE d.status = 'pending' ORDER BY d.id ASC LIMIT 10")
+    deposits = c.fetchall()
+    conn.close()
+
+    if not deposits:
+        await update.message.reply_text("কোনো Pending Deposit নেই।")
+        return
+
+    for d in deposits:
+        text = (
+            f"💳 Deposit #{d['id']}\n"
+            f"User: {d['full_name']} ({d['user_id']})\n"
+            f"Amount: ৳{d['amount']}\n"
+            f"Method: {d['method']}\n"
+            f"TrxID: {d['trx_id']}\n"
+        )
+        keyboard = [[
+            InlineKeyboardButton("✅ Approve", callback_data=f"approve_dep_{d['id']}"),
+            InlineKeyboardButton("❌ Reject", callback_data=f"reject_dep_{d['id']}")
+        ]]
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def pending_withdraws(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    if user_id not in ADMIN_IDS:
+        await update.message.reply_text("আপনি Admin নন।")
+        return
+
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("SELECT w.*, u.full_name FROM withdraws w JOIN users u ON w.user_id = u.telegram_id WHERE w.status = 'pending' ORDER BY w.id ASC LIMIT 10")
+    withdraws = c.fetchall()
+    conn.close()
+
+    if not withdraws:
+        await update.message.reply_text("কোনো Pending Withdraw নেই।")
+        return
+
+    for w in withdraws:
+        text = (
+            f"💸 Withdraw #{w['id']}\n"
+            f"User: {w['full_name']} ({w['user_id']})\n"
+            f"Amount: ৳{w['amount']}\n"
+            f"Method: {w['method']}\n"
+            f"Number: {w['number']}\n"
+        )
+        keyboard = [[
+            InlineKeyboardButton("✅ Paid & Approve", callback_data=f"approve_wd_{w['id']}"),
+            InlineKeyboardButton("❌ Reject", callback_data=f"reject_wd_{w['id']}")
+        ]]
+        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+    data = query.data
+    user_id = query.from_user.id
+
+    if user_id not in ADMIN_IDS:
+        await query.edit_message_text("আপনি Admin নন।")
+        return
+
+    conn = get_db()
+    c = conn.cursor()
+
+    if data.startswith("approve_task_"):
+        task_id = int(data.split("_")[2])
+        c.execute("UPDATE tasks SET status = 'approved' WHERE id = ?", (task_id,))
+        conn.commit()
+        await query.edit_message_text(f"✅ Task #{task_id} Approved!")
+
+    elif data.startswith("reject_task_"):
+        task_id = int(data.split("_")[2])
+        c.execute("UPDATE tasks SET status = 'rejected' WHERE id = ?", (task_id,))
+        conn.commit()
+        await query.edit_message_text(f"❌ Task #{task_id} Rejected.")
+
+    elif data.startswith("approve_dep_"):
+        dep_id = int(data.split("_")[2])
+        c.execute("SELECT * FROM deposits WHERE id = ?", (dep_id,))
+        dep = c.fetchone()
+        if dep and dep["status"] == "pending":
+            c.execute("UPDATE deposits SET status = 'approved' WHERE id = ?", (dep_id,))
+            c.execute("UPDATE users SET balance = balance + ? WHERE telegram_id = ?", (dep["amount"], dep["user_id"]))
+            conn.commit()
+            await query.edit_message_text(f"✅ Deposit #{dep_id} Approved! ৳{dep['amount']} যোগ করা হয়েছে।")
+        else:
+            await query.edit_message_text("ইতিমধ্যে প্রসেস করা হয়েছে।")
+
+    elif data.startswith("reject_dep_"):
+        dep_id = int(data.split("_")[2])
+        c.execute("UPDATE deposits SET status = 'rejected' WHERE id = ?", (dep_id,))
+        conn.commit()
+        await query.edit_message_text(f"❌ Deposit #{dep_id} Rejected.")
+
+    elif data.startswith("approve_wd_"):
+        wd_id = int(data.split("_")[2])
+        c.execute("UPDATE withdraws SET status = 'approved' WHERE id = ?", (wd_id,))
+        conn.commit()
+        await query.edit_message_text(f"✅ Withdraw #{wd_id} Approved (Paid).")
+
+    elif data.startswith("reject_wd_"):
+        wd_id = int(data.split("_")[2])
+        c.execute("SELECT * FROM withdraws WHERE id = ?", (wd_id,))
+        wd = c.fetchone()
+        if wd and wd["status"] == "pending":
+            # টাকা ফেরত দিয়ে দাও
+            c.execute("UPDATE users SET balance = balance + ? WHERE telegram_id = ?", (wd["amount"], wd["user_id"]))
+            c.execute("UPDATE withdraws SET status = 'rejected' WHERE id = ?", (wd_id,))
+            conn.commit()
+            await query.edit_message_text(f"❌ Withdraw #{wd_id} Rejected. টাকা ফেরত দেওয়া হয়েছে।")
+        else:
+            await query.edit_message_text("ইতিমধ্যে প্রসেস করা হয়েছে।")
+
+    conn.close()
+
 application.add_handler(CommandHandler("start", start))
 application.add_handler(CommandHandler("admin", admin_panel))
+application.add_handler(CommandHandler("pending_tasks", pending_tasks))
+application.add_handler(CommandHandler("pending_deposits", pending_deposits))
+application.add_handler(CommandHandler("pending_withdraws", pending_withdraws))
+application.add_handler(CallbackQueryHandler(button_handler))
 
 # ================== API ROUTES FOR MINI APP ==================
 @app.route("/")
@@ -195,7 +363,9 @@ def home():
 def api_user(user_id):
     user = get_user(user_id)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        # Auto create if not exists (from Mini App)
+        get_or_create_user(user_id)
+        user = get_user(user_id)
     return jsonify({
         "telegram_id": user["telegram_id"],
         "full_name": user["full_name"],
@@ -224,11 +394,8 @@ def api_create_task():
     if not title or price <= 0 or slots <= 0:
         return jsonify({"error": "Invalid data"}), 400
 
-    user = get_user(user_id)
-    if not user:
-        return jsonify({"error": "User not found"}), 404
+    get_or_create_user(user_id)
 
-    # Task create করতে balance লাগবে না আপাতত (creator পরে worker কে দিবে)
     conn = get_db()
     c = conn.cursor()
     c.execute(
@@ -252,6 +419,8 @@ def api_deposit():
     if amount <= 0 or not trx_id or method not in ["bkash", "nagad"]:
         return jsonify({"error": "Invalid data"}), 400
 
+    get_or_create_user(user_id)
+
     conn = get_db()
     c = conn.cursor()
     c.execute(
@@ -273,7 +442,8 @@ def api_withdraw():
 
     user = get_user(user_id)
     if not user:
-        return jsonify({"error": "User not found"}), 404
+        get_or_create_user(user_id)
+        user = get_user(user_id)
 
     if amount <= 0 or amount > user["balance"]:
         return jsonify({"error": "অপর্যাপ্ত ব্যালেন্স বা ভুল এমাউন্ট"}), 400
@@ -281,7 +451,6 @@ def api_withdraw():
     if method not in ["bkash", "nagad"] or not number:
         return jsonify({"error": "Invalid data"}), 400
 
-    # Balance hold করা (কমিয়ে রাখা)
     update_balance(user_id, -amount)
 
     conn = get_db()
@@ -333,6 +502,7 @@ def main():
     loop.run_until_complete(setup_webhook())
 
     print(f"Starting server on port {PORT}...")
+    print(f"Admin IDs: {ADMIN_IDS}")
     app.run(host="0.0.0.0", port=PORT)
 
 if __name__ == "__main__":
