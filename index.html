@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Mini App</title>
+    <!-- Telegram WebApp Script (অ্যাপকে টেলিগ্রামের সাথে যুক্ত করে) -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            width: 90%;
+            max-width: 400px;
+        }
+        h1 { color: #333; }
+        p { color: #666; }
+        button {
+            background-color: #0088cc;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            width: 100%;
+            margin-top: 15px;
+        }
+        button:hover { background-color: #0077b5; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome! 👋</h1>
+        <p>এটি আপনার টেলিগ্রাম মিনি অ্যাপ।</p>
+        <button onclick="showAlert()">Click Me</button>
+    </div>
+
+    <script>
+        // টেলিগ্রাম ওয়েব অ্যাপ ইনিশিয়ালাইজ করা
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand(); // অ্যাপকে ফুল স্ক্রিন দেখাবে
+
+        function showAlert() {
+            // ইউজারের নাম টেলিগ্রাম থেকে নেওয়া
+            const user = tg.initDataUnsafe.user;
+            const name = user ? user.first_name : "Guest";
+            
+            // টেলিগ্রামে একটি মেসেজ দেখানো
+            tg.showAlert(`Hello, ${name}! আপনি সফলভাবে অ্যাপটি খুলেছেন।`);
+
+            // চাইলে এই ডেটা ব্যাকএন্ডে (bot.py) পাঠাতে পারেন
+            // fetch('/api/data', { method: 'POST', body: JSON.stringify({user: name}) });
+        }
+    </script>
+</body>
+</html>
