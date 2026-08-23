@@ -21,6 +21,14 @@ DB_NAME = "social_earn.db"
 if not TOKEN:
     raise ValueError("BOT_TOKEN environment variable is not set!")
 
+def normalize_url(url):
+    url = (url or "").strip()
+    if not url:
+        return ""
+    if not url.startswith("http://") and not url.startswith("https://"):
+        url = "https://" + url
+    return url
+
 def get_db():
     conn = sqlite3.connect(DB_NAME)
     conn.row_factory = sqlite3.Row
@@ -96,6 +104,15 @@ def update_balance(telegram_id, amount):
     conn.commit()
     conn.close()
 
+def get_pending_earn(user_id):
+    conn = get_db(); c = conn.cursor()
+    c.execute("""SELECT COALESCE(SUM(t.price),0) as total FROM submissions s
+               JOIN tasks t ON s.task_id=t.id
+               WHERE s.worker_id=? AND s.status='pending'""", (user_id,))
+    total = c.fetchone()["total"] or 0
+    conn.close()
+    return float(total)
+
 app = Flask(__name__)
 application = Application.builder().token(TOKEN).updater(None).build()
 
@@ -110,15 +127,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
-        await update.message.reply_text("আপনি Admin নন।")
-        return
+        await update.message.reply_text("আপনি Admin নন।"); return
     conn = get_db(); c = conn.cursor()
-    c.execute("SELECT COUNT(*) as cnt FROM tasks WHERE status='pending'")
-    pt = c.fetchone()["cnt"]
-    c.execute("SELECT COUNT(*) as cnt FROM deposits WHERE status='pending'")
-    pd = c.fetchone()["cnt"]
-    c.execute("SELECT COUNT(*) as cnt FROM withdraws WHERE status='pending'")
-    pw = c.fetchone()["cnt"]
+    c.execute("SELECT COUNT(*) as cnt FROM tasks WHERE status='pending'"); pt = c.fetchone()["cnt"]
+    c.execute("SELECT COUNT(*) as cnt FROM deposits WHERE status='pending'"); pd = c.fetchone()["cnt"]
+    c.execute("SELECT COUNT(*) as cnt FROM withdraws WHERE status='pending'"); pw = c.fetchone()["cnt"]
     conn.close()
     await update.message.reply_text(f"Admin\nPending Tasks: {pt}\nDeposits: {pd}\nWithdraws: {pw}\n\n/pending_tasks\n/pending_deposits\n/pending_withdraws")
 
@@ -221,7 +234,47 @@ def api_user(user_id):
     user = get_user(user_id)
     if not user:
         get_or_create_user(user_id); user = get_user(user_id)
-    return jsonify({"telegram_id": user["telegram_id"], "full_name": user["full_name"], "balance": user["balance"], "is_admin": bool(user["is_admin"])})
+    pending = get_pending_earn(user_id)
+    return jsonify({
+        "telegram_id": user["telegram_id"],
+        "full_name": user["full_name"],
+        "balance": user["balance"],
+        "pending_balance": pending,
+        "is_admin": bool(user["is_admin"])
+    })
+
+@app.route("/api/my_work/<int:user_id>")
+def api_my_work(user_id):
+    """All submissions by this worker (pending/approved/rejected)"""
+    conn = get_db(); c = conn.cursor()
+    c.execute("""SELECT s.id as sub_id, s.status, s.proof_text, s.created_at,
+               t.title, t.price
+               FROM submissions s JOIN tasks t ON s.task_id=t.id
+               WHERE s.worker_id=?
+               ORDER BY s.id DESC LIMIT 50""", (user_id,))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify(rows)
+
+@app.route("/api/history/<int:user_id>")
+def api_history(user_id):
+    """Combined history: deposits, withdraws, task earnings"""
+    conn = get_db(); c = conn.cursor()
+    items = []
+    c.execute("SELECT id, amount, method, trx_id, status, created_at FROM deposits WHERE user_id=? ORDER BY id DESC LIMIT 30", (user_id,))
+    for r in c.fetchall():
+        items.append({"type": "deposit", "amount": r["amount"], "detail": f"{r['method']} {r['trx_id']}", "status": r["status"], "created_at": r["created_at"]})
+    c.execute("SELECT id, amount, method, number, status, created_at FROM withdraws WHERE user_id=? ORDER BY id DESC LIMIT 30", (user_id,))
+    for r in c.fetchall():
+        items.append({"type": "withdraw", "amount": r["amount"], "detail": f"{r['method']} {r['number']}", "status": r["status"], "created_at": r["created_at"]})
+    c.execute("""SELECT s.status, s.created_at, t.title, t.price
+               FROM submissions s JOIN tasks t ON s.task_id=t.id
+               WHERE s.worker_id=? ORDER BY s.id DESC LIMIT 30""", (user_id,))
+    for r in c.fetchall():
+        items.append({"type": "task", "amount": r["price"], "detail": r["title"], "status": r["status"], "created_at": r["created_at"]})
+    conn.close()
+    items.sort(key=lambda x: x.get("created_at") or "", reverse=True)
+    return jsonify(items[:50])
 
 @app.route("/api/tasks")
 def api_tasks():
@@ -239,7 +292,10 @@ def api_task_detail(task_id):
     c.execute("SELECT t.*, u.full_name as creator_name FROM tasks t JOIN users u ON t.creator_id=u.telegram_id WHERE t.id=? AND t.status='approved'", (task_id,))
     task = c.fetchone(); conn.close()
     if not task: return jsonify({"error": "Task পাওয়া যায়নি"}), 404
-    return jsonify(dict(task))
+    d = dict(task)
+    if d.get("task_link"):
+        d["task_link"] = normalize_url(d["task_link"])
+    return jsonify(d)
 
 @app.route("/api/create_task", methods=["POST"])
 def api_create_task():
@@ -251,14 +307,12 @@ def api_create_task():
     slots = int(data.get("slots", 1))
     require_screenshot = 1 if data.get("require_screenshot", True) else 0
     example_text = data.get("example_text", "").strip()
-    task_link = data.get("task_link", "").strip()
+    task_link = normalize_url(data.get("task_link", ""))
     example_image = data.get("example_image", "")
-
     if not title or not description or price <= 0 or slots <= 0:
         return jsonify({"error": "সব ঘর পূরণ করুন"}), 400
     if example_image and len(example_image) > 400000:
         return jsonify({"error": "Example ছবি অনেক বড়"}), 400
-
     user = get_user(user_id) or get_or_create_user(user_id)
     user = get_user(user_id)
     required = price * slots
@@ -317,19 +371,8 @@ def api_my_reviews(user_id):
     rows = [dict(r) for r in c.fetchall()]
     for r in rows:
         r["has_image"] = bool(r.get("proof_image"))
-        # keep proof_image so creator can see screenshot
     conn.close()
     return jsonify(rows)
-
-@app.route("/api/submission/<int:sub_id>")
-def api_submission_detail(sub_id):
-    conn = get_db(); c = conn.cursor()
-    c.execute("""SELECT s.*, t.title, t.price, t.creator_id, u.full_name as worker_name
-               FROM submissions s JOIN tasks t ON s.task_id=t.id JOIN users u ON s.worker_id=u.telegram_id
-               WHERE s.id=?""", (sub_id,))
-    row = c.fetchone(); conn.close()
-    if not row: return jsonify({"error": "Not found"}), 404
-    return jsonify(dict(row))
 
 @app.route("/api/review_submission", methods=["POST"])
 def api_review_submission():
