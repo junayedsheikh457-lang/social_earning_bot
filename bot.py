@@ -11,7 +11,7 @@ TOKEN = os.environ.get("BOT_TOKEN")
 PORT = int(os.environ.get("PORT", 8000))
 APP_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 
-# Admin ID (তোমার দেওয়া ID + env থেকেও নিতে পারবে)
+# Admin ID
 DEFAULT_ADMIN = 5851334722
 env_admins = [int(x) for x in os.environ.get("ADMIN_IDS", "").split(",") if x.strip().isdigit()]
 ADMIN_IDS = list(set([DEFAULT_ADMIN] + env_admins))
@@ -108,7 +108,6 @@ def get_or_create_user(telegram_id, username=None, full_name=None):
         c.execute("SELECT * FROM users WHERE telegram_id = ?", (telegram_id,))
         user = c.fetchone()
     else:
-        # Admin ID আপডেট রাখার জন্য
         if telegram_id in ADMIN_IDS and user["is_admin"] == 0:
             c.execute("UPDATE users SET is_admin = 1 WHERE telegram_id = ?", (telegram_id,))
             conn.commit()
@@ -337,7 +336,6 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         c.execute("SELECT * FROM withdraws WHERE id = ?", (wd_id,))
         wd = c.fetchone()
         if wd and wd["status"] == "pending":
-            # টাকা ফেরত দিয়ে দাও
             c.execute("UPDATE users SET balance = balance + ? WHERE telegram_id = ?", (wd["amount"], wd["user_id"]))
             c.execute("UPDATE withdraws SET status = 'rejected' WHERE id = ?", (wd_id,))
             conn.commit()
@@ -354,7 +352,7 @@ application.add_handler(CommandHandler("pending_deposits", pending_deposits))
 application.add_handler(CommandHandler("pending_withdraws", pending_withdraws))
 application.add_handler(CallbackQueryHandler(button_handler))
 
-# ================== API ROUTES FOR MINI APP ==================
+# ================== API ROUTES ==================
 @app.route("/")
 def home():
     return send_from_directory(".", "index.html")
@@ -363,7 +361,6 @@ def home():
 def api_user(user_id):
     user = get_user(user_id)
     if not user:
-        # Auto create if not exists (from Mini App)
         get_or_create_user(user_id)
         user = get_user(user_id)
     return jsonify({
@@ -391,10 +388,23 @@ def api_create_task():
     price = float(data.get("price", 0))
     slots = int(data.get("slots", 1))
 
-    if not title or price <= 0 or slots <= 0:
-        return jsonify({"error": "Invalid data"}), 400
+    if not title or not description or price <= 0 or slots <= 0:
+        return jsonify({"error": "সব ঘর সঠিকভাবে পূরণ করুন"}), 400
 
-    get_or_create_user(user_id)
+    user = get_user(user_id)
+    if not user:
+        get_or_create_user(user_id)
+        user = get_user(user_id)
+
+    # Task তৈরি করতে price * slots পরিমাণ টাকা লাগবে
+    required = price * slots
+    if user["balance"] < required:
+        return jsonify({
+            "error": f"অপর্যাপ্ত ব্যালেন্স! Task তৈরি করতে ৳{required:.0f} লাগবে। আপনার ব্যালেন্স: ৳{user['balance']:.0f}"
+        }), 400
+
+    # টাকা কেটে রাখি (hold)
+    update_balance(user_id, -required)
 
     conn = get_db()
     c = conn.cursor()
@@ -406,7 +416,11 @@ def api_create_task():
     task_id = c.lastrowid
     conn.close()
 
-    return jsonify({"success": True, "task_id": task_id, "message": "Task সাবমিট হয়েছে। Admin approve এর অপেক্ষায়।"})
+    return jsonify({
+        "success": True,
+        "task_id": task_id,
+        "message": f"Task সাবমিট হয়েছে। ৳{required:.0f} কেটে রাখা হয়েছে। Admin approve এর অপেক্ষায়।"
+    })
 
 @app.route("/api/deposit", methods=["POST"])
 def api_deposit():
