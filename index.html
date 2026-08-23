@@ -14,23 +14,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .balance-card{background:var(--card);margin:-12px 16px 20px;padding:22px 20px;border-radius:18px;box-shadow:0 8px 24px rgba(0,0,0,.08);text-align:center;position:relative;z-index:10}
 .balance-label{font-size:13px;color:var(--muted)}.balance-amount{font-size:36px;font-weight:800;color:var(--primary);margin:6px 0 4px}.user-name{font-size:14px;color:var(--muted)}
 .menu{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:0 16px 20px}
-.menu-btn{background:var(--card);border:none;border-radius:16px;padding:20px 12px;font-size:14px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.05);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:10px}
-.menu-btn .icon{width:48px;height:48px;border-radius:14px;display:flex;align-items:center;justify-content:center;font-size:24px}
-.menu-btn:nth-child(1) .icon{background:#e0f2fe}.menu-btn:nth-child(2) .icon{background:#dcfce7}.menu-btn:nth-child(3) .icon{background:#fef3c7}.menu-btn:nth-child(4) .icon{background:#fce7f3}
+.menu-btn{background:var(--card);border:none;border-radius:16px;padding:18px 10px;font-size:13px;font-weight:600;box-shadow:0 4px 12px rgba(0,0,0,.05);cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:8px}
+.menu-btn .icon{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px}
+.menu-btn:nth-child(1) .icon{background:#e0f2fe}.menu-btn:nth-child(2) .icon{background:#dcfce7}.menu-btn:nth-child(3) .icon{background:#fef3c7}.menu-btn:nth-child(4) .icon{background:#fce7f3}.menu-btn:nth-child(5) .icon{background:#ede9fe}
 .page{display:none;padding:16px}.page.active{display:block}
 .page-title{font-size:18px;font-weight:700;margin-bottom:16px}
 .back-btn{background:none;border:none;color:var(--primary);font-size:15px;font-weight:600;margin-bottom:12px;cursor:pointer}
 .card{background:var(--card);border-radius:16px;padding:18px;margin-bottom:14px;box-shadow:0 4px 14px rgba(0,0,0,.05);border:1px solid var(--border)}
 .form-group{margin-bottom:14px}.form-label{display:block;font-size:13px;font-weight:600;color:var(--muted);margin-bottom:6px}
 input,textarea,select{width:100%;padding:13px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:15px;background:#f8fafc}
-input:focus,textarea:focus{outline:none;border-color:var(--primary);background:#fff}
 textarea{resize:vertical;min-height:80px}
-button.primary{width:100%;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;border:none;padding:15px;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(14,165,233,.35);margin-top:6px}
+button.primary{width:100%;background:linear-gradient(135deg,#0ea5e9,#0284c7);color:#fff;border:none;padding:15px;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;margin-top:6px}
+.btn-row{display:flex;gap:10px;margin-top:12px}
+.btn-approve{flex:1;background:#22c55e;color:#fff;border:none;padding:12px;border-radius:12px;font-weight:700;cursor:pointer}
+.btn-reject{flex:1;background:#ef4444;color:#fff;border:none;padding:12px;border-radius:12px;font-weight:700;cursor:pointer}
 .info-box{background:#e0f2fe;border-left:4px solid var(--primary);padding:12px 14px;border-radius:0 12px 12px 0;font-size:13px;line-height:1.55;margin-bottom:16px;color:#0c4a6e}
 .info-box.warning{background:#fef3c7;border-left-color:#f59e0b;color:#78350f}
 .task-card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:12px;border:1px solid var(--border);cursor:pointer}
-.task-card:active{transform:scale(.98)}.task-card .title{font-weight:700;font-size:15px;margin-bottom:6px}
-.task-card .desc{font-size:13px;color:var(--muted);margin-bottom:12px;line-height:1.45}
+.task-card .title{font-weight:700;font-size:15px;margin-bottom:6px}
+.task-card .desc{font-size:13px;color:var(--muted);margin-bottom:12px}
 .task-meta{display:flex;justify-content:space-between;align-items:center}
 .task-price{background:#dcfce7;color:#15803d;font-weight:700;font-size:14px;padding:5px 12px;border-radius:20px}
 .task-slots{font-size:13px;color:var(--muted)}
@@ -39,7 +41,7 @@ button.primary{width:100%;background:linear-gradient(135deg,#0ea5e9,#0284c7);col
 .method-btn.active{border-color:var(--primary);background:#e0f2fe;color:var(--primary-dark)}
 .number-box{background:linear-gradient(135deg,#ecfdf5,#d1fae5);border:2px dashed #22c55e;padding:16px;border-radius:14px;text-align:center;margin:14px 0;cursor:pointer}
 .number-box .label{font-size:12px;color:#166534;margin-bottom:4px;font-weight:600}
-.number-box .number{font-size:24px;font-weight:800;color:#15803d;letter-spacing:1.5px}
+.number-box .number{font-size:24px;font-weight:800;color:#15803d}
 .number-box .hint{font-size:12px;color:#4ade80;margin-top:6px}
 .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;display:flex;justify-content:space-around;padding:10px 0 12px;box-shadow:0 -4px 20px rgba(0,0,0,.06);z-index:100;border-top:1px solid var(--border)}
 .nav-item{text-align:center;font-size:11px;color:var(--muted);cursor:pointer;flex:1;font-weight:500}
@@ -48,6 +50,7 @@ button.primary{width:100%;background:linear-gradient(135deg,#0ea5e9,#0284c7);col
 .check-row{display:flex;align-items:center;gap:10px;margin:12px 0;font-size:14px}
 .check-row input{width:18px;height:18px}
 .preview-img{max-width:100%;max-height:180px;border-radius:10px;margin-top:8px;display:none}
+.review-card{background:var(--card);border-radius:16px;padding:16px;margin-bottom:12px;border:1px solid var(--border)}
 </style>
 </head>
 <body>
@@ -60,220 +63,184 @@ button.primary{width:100%;background:linear-gradient(135deg,#0ea5e9,#0284c7);col
     <div class="user-name" id="userName"></div>
   </div>
   <div class="menu">
-    <button class="menu-btn" onclick="showPage('tasks')"><div class="icon">📋</div>Available Tasks</button>
-    <button class="menu-btn" onclick="showPage('create')"><div class="icon">➕</div>Create Task</button>
+    <button class="menu-btn" onclick="showPage('tasks')"><div class="icon">📋</div>Tasks</button>
+    <button class="menu-btn" onclick="showPage('create')"><div class="icon">➕</div>Create</button>
+    <button class="menu-btn" onclick="showPage('reviews')"><div class="icon">✅</div>Reviews</button>
     <button class="menu-btn" onclick="showPage('deposit')"><div class="icon">💳</div>Deposit</button>
     <button class="menu-btn" onclick="showPage('withdraw')"><div class="icon">💸</div>Withdraw</button>
   </div>
 </div>
 
 <div id="tasks" class="page">
-  <button class="back-btn" onclick="showPage('home')">← হোমে ফিরে যান</button>
+  <button class="back-btn" onclick="showPage('home')">← হোম</button>
   <div class="page-title">📋 Available Tasks</div>
-  <div class="info-box">Task-এ <b>ক্লিক</b> করে ভিতরে ঢুকুন ও কাজ সাবমিট করুন।</div>
-  <div id="taskList"><div class="empty"><span>⏳</span>লোড হচ্ছে...</div></div>
+  <div class="info-box">Task-এ ক্লিক করে কাজ সাবমিট করুন। নিজের Task নিজে করতে পারবেন না।</div>
+  <div id="taskList"><div class="empty"><span>⏳</span>লোড...</div></div>
 </div>
 
 <div id="taskDetail" class="page">
-  <button class="back-btn" onclick="showPage('tasks')">← Tasks এ ফিরে যান</button>
+  <button class="back-btn" onclick="showPage('tasks')">← Tasks</button>
   <div class="page-title" id="tdTitle">Task</div>
   <div class="card">
-    <div id="tdDesc" style="font-size:14px;line-height:1.5;margin-bottom:12px;color:#334155"></div>
-    <div style="display:flex;justify-content:space-between;margin-bottom:8px">
-      <span class="task-price" id="tdPrice">৳ 0</span>
-      <span class="task-slots" id="tdSlots"></span>
-    </div>
+    <div id="tdDesc" style="font-size:14px;line-height:1.5;margin-bottom:12px"></div>
+    <div style="display:flex;justify-content:space-between"><span class="task-price" id="tdPrice">৳0</span><span class="task-slots" id="tdSlots"></span></div>
     <div id="tdRequire" class="info-box" style="display:none;margin-top:12px"></div>
     <div id="tdExample" class="info-box warning" style="display:none;margin-top:8px"></div>
   </div>
   <div class="card">
-    <div class="form-group">
-      <label class="form-label">প্রুফ লিখুন (Text)</label>
-      <textarea id="proofText" placeholder="কাজ করেছেন তার বিবরণ লিখুন..."></textarea>
-    </div>
-    <div class="form-group">
-      <label class="form-label">Screenshot আপলোড করুন (ঐচ্ছিক / প্রয়োজন হলে)</label>
-      <input type="file" id="proofImage" accept="image/*" onchange="previewImage(this)">
-      <img id="imgPreview" class="preview-img">
-    </div>
-    <button class="primary" onclick="submitProof()">✅ প্রুফ সাবমিট করুন</button>
+    <div class="form-group"><label class="form-label">প্রুফ (Text)</label><textarea id="proofText" placeholder="বিবরণ লিখুন..."></textarea></div>
+    <div class="form-group"><label class="form-label">Screenshot</label><input type="file" id="proofImage" accept="image/*" onchange="previewImage(this)"><img id="imgPreview" class="preview-img"></div>
+    <button class="primary" onclick="submitProof()">✅ প্রুফ সাবমিট</button>
   </div>
 </div>
 
+<div id="reviews" class="page">
+  <button class="back-btn" onclick="showPage('home')">← হোম</button>
+  <div class="page-title">✅ আমার Task রিভিউ</div>
+  <div class="info-box">অন্যরা আপনার Task-এ সাবমিট করলে এখানে Approve/Reject করতে পারবেন। Approve করলে Worker টাকা পাবে।</div>
+  <div id="reviewList"><div class="empty"><span>⏳</span>লোড...</div></div>
+</div>
+
 <div id="create" class="page">
-  <button class="back-btn" onclick="showPage('home')">← হোমে ফিরে যান</button>
-  <div class="page-title">➕ নতুন Task তৈরি</div>
-  <div class="info-box warning">Price × কয়জন পরিমাণ টাকা ব্যালেন্স থেকে কেটে রাখা হবে।</div>
+  <button class="back-btn" onclick="showPage('home')">← হোম</button>
+  <div class="page-title">➕ Task তৈরি</div>
+  <div class="info-box warning">Price × কয়জন টাকা কেটে রাখা হবে।</div>
   <div class="card">
-    <div class="form-group"><label class="form-label">Task এর শিরোনাম</label><input type="text" id="taskTitle" placeholder="যেমন: Facebook Like দিন"></div>
-    <div class="form-group"><label class="form-label">বিস্তারিত বিবরণ</label><textarea id="taskDesc" placeholder="কী করতে হবে লিখুন..."></textarea></div>
-    <div class="form-group"><label class="form-label">প্রতি জন কত টাকা পাবে?</label><input type="number" id="taskPrice" placeholder="10" min="1"></div>
-    <div class="form-group"><label class="form-label">কয়জন করতে পারবে?</label><input type="number" id="taskSlots" value="1" min="1"></div>
-    <div class="check-row"><input type="checkbox" id="requireSS" checked><label for="requireSS">Screenshot প্রুফ লাগবে</label></div>
-    <div class="form-group"><label class="form-label">উদাহরণ / নির্দেশনা (ঐচ্ছিক)</label><textarea id="exampleText" placeholder="যেমন: এইরকম Screenshot দিতে হবে..."></textarea></div>
-    <button class="primary" onclick="createTask()">🚀 Admin এর কাছে পাঠান</button>
+    <div class="form-group"><label class="form-label">শিরোনাম</label><input type="text" id="taskTitle"></div>
+    <div class="form-group"><label class="form-label">বিবরণ</label><textarea id="taskDesc"></textarea></div>
+    <div class="form-group"><label class="form-label">প্রতি জন টাকা</label><input type="number" id="taskPrice" min="1"></div>
+    <div class="form-group"><label class="form-label">কয়জন</label><input type="number" id="taskSlots" value="1" min="1"></div>
+    <div class="check-row"><input type="checkbox" id="requireSS" checked><label for="requireSS">Screenshot লাগবে</label></div>
+    <div class="form-group"><label class="form-label">উদাহরণ (ঐচ্ছিক)</label><textarea id="exampleText"></textarea></div>
+    <button class="primary" onclick="createTask()">🚀 পাঠান</button>
   </div>
 </div>
 
 <div id="deposit" class="page">
-  <button class="back-btn" onclick="showPage('home')">← হোমে ফিরে যান</button>
+  <button class="back-btn" onclick="showPage('home')">← হোম</button>
   <div class="page-title">💳 Deposit</div>
   <div class="card">
-    <div class="form-group"><label class="form-label">পেমেন্ট মেথড</label>
-      <div class="method-btns">
-        <div class="method-btn active" id="btnBkash" onclick="selectMethod('bkash')">bKash</div>
-        <div class="method-btn" id="btnNagad" onclick="selectMethod('nagad')">Nagad</div>
-      </div>
-    </div>
-    <div class="form-group"><label class="form-label">কত টাকা পাঠাবেন?</label><input type="number" id="depAmount" min="10" oninput="updateNumberBox()"></div>
-    <div class="number-box" id="numberBox" onclick="copyNumber()" style="display:none">
-      <div class="label" id="methodLabel">bKash Number</div>
-      <div class="number" id="showNumber">01600170756</div>
-      <div class="hint">👆 ট্যাপ করলে কপি হবে</div>
-    </div>
-    <div class="form-group"><label class="form-label">Transaction ID</label><input type="text" id="depTrx" placeholder="TrxID"></div>
-    <button class="primary" onclick="submitDeposit()">✅ Deposit সাবমিট</button>
+    <div class="method-btns"><div class="method-btn active" id="btnBkash" onclick="selectMethod('bkash')">bKash</div><div class="method-btn" id="btnNagad" onclick="selectMethod('nagad')">Nagad</div></div>
+    <div class="form-group"><label class="form-label">এমাউন্ট</label><input type="number" id="depAmount" min="10" oninput="updateNumberBox()"></div>
+    <div class="number-box" id="numberBox" onclick="copyNumber()" style="display:none"><div class="label" id="methodLabel">bKash</div><div class="number" id="showNumber">01600170756</div><div class="hint">ট্যাপ = কপি</div></div>
+    <div class="form-group"><label class="form-label">TrxID</label><input type="text" id="depTrx"></div>
+    <button class="primary" onclick="submitDeposit()">সাবমিট</button>
   </div>
 </div>
 
 <div id="withdraw" class="page">
-  <button class="back-btn" onclick="showPage('home')">← হোমে ফিরে যান</button>
+  <button class="back-btn" onclick="showPage('home')">← হোম</button>
   <div class="page-title">💸 Withdraw</div>
   <div class="card">
     <div class="form-group"><label class="form-label">মেথড</label><select id="wdMethod"><option value="bkash">bKash</option><option value="nagad">Nagad</option></select></div>
-    <div class="form-group"><label class="form-label">আপনার নম্বর</label><input type="text" id="wdNumber" placeholder="01XXXXXXXXX"></div>
-    <div class="form-group"><label class="form-label">কত টাকা?</label><input type="number" id="wdAmount" min="50"></div>
-    <button class="primary" onclick="submitWithdraw()">📤 Withdraw রিকোয়েস্ট</button>
+    <div class="form-group"><label class="form-label">নম্বর</label><input type="text" id="wdNumber"></div>
+    <div class="form-group"><label class="form-label">এমাউন্ট</label><input type="number" id="wdAmount" min="50"></div>
+    <button class="primary" onclick="submitWithdraw()">রিকোয়েস্ট</button>
   </div>
 </div>
 
 <div class="bottom-nav">
   <div class="nav-item active" onclick="showPage('home')"><span class="nav-icon">🏠</span>Home</div>
   <div class="nav-item" onclick="showPage('tasks')"><span class="nav-icon">📋</span>Tasks</div>
+  <div class="nav-item" onclick="showPage('reviews')"><span class="nav-icon">✅</span>Review</div>
   <div class="nav-item" onclick="showPage('create')"><span class="nav-icon">➕</span>Create</div>
-  <div class="nav-item" onclick="showPage('deposit')"><span class="nav-icon">💳</span>Deposit</div>
 </div>
 
 <script>
-const tg = window.Telegram.WebApp;
-tg.ready(); tg.expand();
-try{tg.setHeaderColor('#0ea5e9')}catch(e){}
-
-let userId = null, selectedMethod = 'bkash', currentTaskId = null, proofImageBase64 = '';
-const numbers = {bkash:'01600170756', nagad:'01727332914'};
-
-if(tg.initDataUnsafe && tg.initDataUnsafe.user){
-  userId = tg.initDataUnsafe.user.id;
-  document.getElementById('userName').innerText = tg.initDataUnsafe.user.first_name || '';
-}
+const tg=window.Telegram.WebApp;tg.ready();tg.expand();
+let userId=null,selectedMethod='bkash',currentTaskId=null,proofImageBase64='';
+const numbers={bkash:'01600170756',nagad:'01727332914'};
+if(tg.initDataUnsafe&&tg.initDataUnsafe.user){userId=tg.initDataUnsafe.user.id;document.getElementById('userName').innerText=tg.initDataUnsafe.user.first_name||'';}
 
 function showPage(id){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
   document.querySelectorAll('.nav-item').forEach(n=>n.classList.remove('active'));
-  const map={home:0,tasks:1,create:2,deposit:3};
-  if(map[id]!==undefined) document.querySelectorAll('.nav-item')[map[id]].classList.add('active');
-  if(id==='tasks') loadTasks();
-  if(id==='home') loadUser();
-  if(id==='deposit') updateNumberBox();
+  const map={home:0,tasks:1,reviews:2,create:3};
+  if(map[id]!==undefined)document.querySelectorAll('.nav-item')[map[id]].classList.add('active');
+  if(id==='tasks')loadTasks();
+  if(id==='home')loadUser();
+  if(id==='reviews')loadReviews();
+  if(id==='deposit')updateNumberBox();
 }
+function selectMethod(m){selectedMethod=m;document.getElementById('btnBkash').classList.toggle('active',m==='bkash');document.getElementById('btnNagad').classList.toggle('active',m==='nagad');updateNumberBox();}
+function updateNumberBox(){const a=document.getElementById('depAmount').value;const box=document.getElementById('numberBox');if(a&&Number(a)>0){box.style.display='block';document.getElementById('methodLabel').innerText=selectedMethod==='bkash'?'bKash':'Nagad';document.getElementById('showNumber').innerText=numbers[selectedMethod];}else box.style.display='none';}
+function copyNumber(){const n=numbers[selectedMethod];if(navigator.clipboard)navigator.clipboard.writeText(n).then(()=>tg.showAlert('কপি: '+n));else{const i=document.createElement('input');i.value=n;document.body.appendChild(i);i.select();document.execCommand('copy');document.body.removeChild(i);tg.showAlert('কপি: '+n);}}
 
-function selectMethod(m){
-  selectedMethod=m;
-  document.getElementById('btnBkash').classList.toggle('active',m==='bkash');
-  document.getElementById('btnNagad').classList.toggle('active',m==='nagad');
-  updateNumberBox();
-}
-function updateNumberBox(){
-  const a=document.getElementById('depAmount').value;
-  const box=document.getElementById('numberBox');
-  if(a&&Number(a)>0){
-    box.style.display='block';
-    document.getElementById('methodLabel').innerText=selectedMethod==='bkash'?'bKash Number':'Nagad Number';
-    document.getElementById('showNumber').innerText=numbers[selectedMethod];
-  } else box.style.display='none';
-}
-function copyNumber(){
-  const n=numbers[selectedMethod];
-  if(navigator.clipboard) navigator.clipboard.writeText(n).then(()=>tg.showAlert('✅ কপি হয়েছে\n'+n)).catch(()=>fallbackCopy(n));
-  else fallbackCopy(n);
-}
-function fallbackCopy(t){const i=document.createElement('input');i.value=t;document.body.appendChild(i);i.select();document.execCommand('copy');document.body.removeChild(i);tg.showAlert('✅ কপি হয়েছে\n'+t)}
-
-async function loadUser(){
-  if(!userId) return;
-  try{
-    const r=await fetch('/api/user/'+userId); const d=await r.json();
-    if(d.balance!==undefined) document.getElementById('balance').innerText='৳ '+Number(d.balance).toFixed(2);
-  }catch(e){}
-}
+async function loadUser(){if(!userId)return;try{const r=await fetch('/api/user/'+userId);const d=await r.json();if(d.balance!==undefined)document.getElementById('balance').innerText='৳ '+Number(d.balance).toFixed(2);}catch(e){}}
 
 async function loadTasks(){
   const list=document.getElementById('taskList');
-  list.innerHTML='<div class="empty"><span>⏳</span>লোড হচ্ছে...</div>';
+  list.innerHTML='<div class="empty"><span>⏳</span>লোড...</div>';
   try{
-    const r=await fetch('/api/tasks'); const tasks=await r.json();
-    if(!tasks.length){ list.innerHTML='<div class="empty"><span>📭</span>এখন কোনো Approved Task নেই</div>'; return; }
-    list.innerHTML=tasks.map(t=>`
-      <div class="task-card" onclick="openTask(${t.id})">
-        <div class="title">${t.title}</div>
-        <div class="desc">${t.description}</div>
-        <div class="task-meta">
-          <span class="task-price">৳ ${t.price}</span>
-          <span class="task-slots">${t.remaining_slots}/${t.total_slots} slots</span>
-        </div>
-      </div>`).join('');
-  }catch(e){ list.innerHTML='<div class="empty"><span>⚠️</span>লোড সমস্যা</div>'; }
+    const r=await fetch('/api/tasks');const tasks=await r.json();
+    if(!tasks.length){list.innerHTML='<div class="empty"><span>📭</span>কোনো Task নেই</div>';return;}
+    list.innerHTML=tasks.map(t=>`<div class="task-card" onclick="openTask(${t.id})"><div class="title">${t.title}</div><div class="desc">${t.description}</div><div class="task-meta"><span class="task-price">৳ ${t.price}</span><span class="task-slots">${t.remaining_slots}/${t.total_slots}</span></div></div>`).join('');
+  }catch(e){list.innerHTML='<div class="empty">সমস্যা</div>';}
 }
 
 async function openTask(id){
-  currentTaskId=id;
-  proofImageBase64='';
-  document.getElementById('proofText').value='';
-  document.getElementById('proofImage').value='';
-  document.getElementById('imgPreview').style.display='none';
+  currentTaskId=id;proofImageBase64='';
+  document.getElementById('proofText').value='';document.getElementById('proofImage').value='';document.getElementById('imgPreview').style.display='none';
   try{
-    const r=await fetch('/api/task/'+id); const t=await r.json();
-    if(t.error){ tg.showAlert(t.error); return; }
+    const r=await fetch('/api/task/'+id);const t=await r.json();
+    if(t.error){tg.showAlert(t.error);return;}
+    if(t.creator_id===userId){tg.showAlert('নিজের Task নিজে Complete করতে পারবেন না');return;}
     document.getElementById('tdTitle').innerText=t.title;
     document.getElementById('tdDesc').innerText=t.description;
     document.getElementById('tdPrice').innerText='৳ '+t.price;
-    document.getElementById('tdSlots').innerText=t.remaining_slots+'/'+t.total_slots+' slots';
+    document.getElementById('tdSlots').innerText=t.remaining_slots+'/'+t.total_slots;
     const req=document.getElementById('tdRequire');
-    if(t.require_screenshot){ req.style.display='block'; req.innerHTML='⚠️ এই Task-এ <b>Screenshot</b> প্রুফ দিতে হবে'; }
-    else req.style.display='none';
+    if(t.require_screenshot){req.style.display='block';req.innerHTML='⚠️ Screenshot প্রুফ লাগবে';}else req.style.display='none';
     const ex=document.getElementById('tdExample');
-    if(t.example_text){ ex.style.display='block'; ex.innerHTML='📌 উদাহরণ/নির্দেশনা:<br>'+t.example_text; }
-    else ex.style.display='none';
+    if(t.example_text){ex.style.display='block';ex.innerHTML='📌 '+t.example_text;}else ex.style.display='none';
     showPage('taskDetail');
-  }catch(e){ tg.showAlert('লোড করতে সমস্যা'); }
+  }catch(e){tg.showAlert('সমস্যা');}
 }
 
 function previewImage(input){
-  const file=input.files[0];
-  if(!file) return;
-  if(file.size>350000){ tg.showAlert('ছবি একটু বড়। ছোট Screenshot দিন।'); input.value=''; return; }
-  const reader=new FileReader();
-  reader.onload=e=>{
-    proofImageBase64=e.target.result;
-    const img=document.getElementById('imgPreview');
-    img.src=proofImageBase64; img.style.display='block';
-  };
-  reader.readAsDataURL(file);
+  const f=input.files[0];if(!f)return;
+  if(f.size>350000){tg.showAlert('ছবি বড়');input.value='';return;}
+  const reader=new FileReader();reader.onload=e=>{proofImageBase64=e.target.result;const img=document.getElementById('imgPreview');img.src=proofImageBase64;img.style.display='block';};reader.readAsDataURL(f);
 }
 
 async function submitProof(){
   const text=document.getElementById('proofText').value.trim();
-  if(!text && !proofImageBase64){ tg.showAlert('প্রুফ লিখুন বা Screenshot দিন'); return; }
+  if(!text&&!proofImageBase64){tg.showAlert('প্রুফ দিন');return;}
   try{
-    const r=await fetch('/api/submit_proof',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({user_id:userId, task_id:currentTaskId, proof_text:text, proof_image:proofImageBase64})
-    });
+    const r=await fetch('/api/submit_proof',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,task_id:currentTaskId,proof_text:text,proof_image:proofImageBase64})});
     const d=await r.json();
-    if(d.success){ tg.showAlert(d.message); showPage('tasks'); loadTasks(); }
-    else tg.showAlert(d.error||'সমস্যা হয়েছে');
-  }catch(e){ tg.showAlert('নেটওয়ার্ক এরর'); }
+    if(d.success){tg.showAlert(d.message);showPage('tasks');loadTasks();}else tg.showAlert(d.error||'সমস্যা');
+  }catch(e){tg.showAlert('নেটওয়ার্ক এরর');}
+}
+
+async function loadReviews(){
+  const list=document.getElementById('reviewList');
+  list.innerHTML='<div class="empty"><span>⏳</span>লোড...</div>';
+  try{
+    const r=await fetch('/api/my_reviews/'+userId);const rows=await r.json();
+    if(!rows.length){list.innerHTML='<div class="empty"><span>📭</span>কোনো Pending রিভিউ নেই</div>';return;}
+    list.innerHTML=rows.map(s=>`
+      <div class="review-card">
+        <div class="title">${s.title}</div>
+        <div style="font-size:13px;color:#64748b;margin:6px 0">Worker: ${s.worker_name||s.worker_id}</div>
+        <div style="font-size:14px;margin-bottom:8px">${s.proof_text||'(শুধু Screenshot)'}</div>
+        <div class="task-price">৳ ${s.price}</div>
+        ${s.has_image?'<div style="font-size:12px;color:#0ea5e9;margin-top:6px">📷 Screenshot আছে</div>':''}
+        <div class="btn-row">
+          <button class="btn-approve" onclick="reviewSub(${s.sub_id},'approve')">✅ Approve</button>
+          <button class="btn-reject" onclick="reviewSub(${s.sub_id},'reject')">❌ Reject</button>
+        </div>
+      </div>`).join('');
+  }catch(e){list.innerHTML='<div class="empty">সমস্যা</div>';}
+}
+
+async function reviewSub(subId,action){
+  try{
+    const r=await fetch('/api/review_submission',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,sub_id:subId,action:action})});
+    const d=await r.json();
+    if(d.success){tg.showAlert(d.message);loadReviews();loadUser();}else tg.showAlert(d.error||'সমস্যা');
+  }catch(e){tg.showAlert('নেটওয়ার্ক এরর');}
 }
 
 async function createTask(){
@@ -283,48 +250,35 @@ async function createTask(){
   const slots=document.getElementById('taskSlots').value;
   const require_screenshot=document.getElementById('requireSS').checked;
   const example_text=document.getElementById('exampleText').value.trim();
-  if(!title||!description||!price||!slots){ tg.showAlert('সব ঘর পূরণ করুন'); return; }
+  if(!title||!description||!price||!slots){tg.showAlert('সব ঘর পূরণ করুন');return;}
   try{
-    const r=await fetch('/api/create_task',{
-      method:'POST', headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({user_id:userId,title,description,price,slots,require_screenshot,example_text})
-    });
+    const r=await fetch('/api/create_task',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,title,description,price,slots,require_screenshot,example_text})});
     const d=await r.json();
-    if(d.success){
-      tg.showAlert(d.message);
-      document.getElementById('taskTitle').value='';
-      document.getElementById('taskDesc').value='';
-      document.getElementById('taskPrice').value='';
-      document.getElementById('taskSlots').value='1';
-      document.getElementById('exampleText').value='';
-      loadUser(); showPage('home');
-    } else tg.showAlert(d.error||'সমস্যা');
-  }catch(e){ tg.showAlert('নেটওয়ার্ক এরর'); }
+    if(d.success){tg.showAlert(d.message);document.getElementById('taskTitle').value='';document.getElementById('taskDesc').value='';document.getElementById('taskPrice').value='';document.getElementById('taskSlots').value='1';document.getElementById('exampleText').value='';loadUser();showPage('home');}
+    else tg.showAlert(d.error||'সমস্যা');
+  }catch(e){tg.showAlert('নেটওয়ার্ক এরর');}
 }
 
 async function submitDeposit(){
-  const amount=document.getElementById('depAmount').value;
-  const trx_id=document.getElementById('depTrx').value.trim();
-  if(!amount||!trx_id){ tg.showAlert('এমাউন্ট ও TrxID দিন'); return; }
+  const amount=document.getElementById('depAmount').value;const trx_id=document.getElementById('depTrx').value.trim();
+  if(!amount||!trx_id){tg.showAlert('এমাউন্ট ও TrxID দিন');return;}
   try{
     const r=await fetch('/api/deposit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,amount,method:selectedMethod,trx_id})});
     const d=await r.json();
-    if(d.success){ tg.showAlert(d.message); document.getElementById('depAmount').value=''; document.getElementById('depTrx').value=''; document.getElementById('numberBox').style.display='none'; showPage('home'); }
+    if(d.success){tg.showAlert(d.message);document.getElementById('depAmount').value='';document.getElementById('depTrx').value='';document.getElementById('numberBox').style.display='none';showPage('home');}
     else tg.showAlert(d.error||'সমস্যা');
-  }catch(e){ tg.showAlert('নেটওয়ার্ক এরর'); }
+  }catch(e){tg.showAlert('নেটওয়ার্ক এরর');}
 }
 
 async function submitWithdraw(){
-  const method=document.getElementById('wdMethod').value;
-  const number=document.getElementById('wdNumber').value.trim();
-  const amount=document.getElementById('wdAmount').value;
-  if(!number||!amount){ tg.showAlert('সব ঘর পূরণ করুন'); return; }
+  const method=document.getElementById('wdMethod').value;const number=document.getElementById('wdNumber').value.trim();const amount=document.getElementById('wdAmount').value;
+  if(!number||!amount){tg.showAlert('সব ঘর পূরণ করুন');return;}
   try{
     const r=await fetch('/api/withdraw',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({user_id:userId,amount,method,number})});
     const d=await r.json();
-    if(d.success){ tg.showAlert(d.message); document.getElementById('wdNumber').value=''; document.getElementById('wdAmount').value=''; loadUser(); showPage('home'); }
+    if(d.success){tg.showAlert(d.message);document.getElementById('wdNumber').value='';document.getElementById('wdAmount').value='';loadUser();showPage('home');}
     else tg.showAlert(d.error||'সমস্যা');
-  }catch(e){ tg.showAlert('নেটওয়ার্ক এরর'); }
+  }catch(e){tg.showAlert('নেটওয়ার্ক এরর');}
 }
 
 loadUser();
