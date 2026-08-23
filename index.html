@@ -107,6 +107,24 @@
             margin-bottom: 16px;
             line-height: 1.5;
         }
+        .number-box {
+            background: #f0fdf4;
+            border: 2px dashed #16a34a;
+            padding: 14px;
+            border-radius: 12px;
+            text-align: center;
+            margin: 12px 0;
+            cursor: pointer;
+            user-select: none;
+        }
+        .number-box .label { font-size: 13px; color: #666; margin-bottom: 4px; }
+        .number-box .number {
+            font-size: 22px;
+            font-weight: 700;
+            color: #16a34a;
+            letter-spacing: 1px;
+        }
+        .number-box .hint { font-size: 12px; color: #888; margin-top: 6px; }
         .bottom-nav {
             position: fixed;
             bottom: 0;
@@ -129,6 +147,26 @@
         .nav-item.active { color: #0088cc; font-weight: 600; }
         .nav-item span { display: block; font-size: 20px; margin-bottom: 2px; }
         .empty { text-align: center; color: #888; padding: 40px 20px; }
+        .method-btns {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 14px;
+        }
+        .method-btn {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            background: white;
+            font-weight: 600;
+            cursor: pointer;
+            text-align: center;
+        }
+        .method-btn.active {
+            border-color: #0088cc;
+            background: #e0f2fe;
+            color: #0088cc;
+        }
     </style>
 </head>
 <body>
@@ -169,10 +207,13 @@
     <div id="create" class="page">
         <button class="back-btn" onclick="showPage('home')">← Back</button>
         <h3 style="margin-bottom:16px;">নতুন Task তৈরি করুন</h3>
+        <div class="info-box">
+            Task তৈরি করতে <b>Price × Slots</b> পরিমাণ টাকা আপনার ব্যালেন্স থেকে কেটে রাখা হবে।
+        </div>
         <div class="card">
             <input type="text" id="taskTitle" placeholder="Task Title">
             <textarea id="taskDesc" rows="4" placeholder="Task বিস্তারিত লিখুন..."></textarea>
-            <input type="number" id="taskPrice" placeholder="কত টাকার Task?" min="1">
+            <input type="number" id="taskPrice" placeholder="প্রতি জন কত টাকা পাবে?" min="1">
             <input type="number" id="taskSlots" placeholder="কয়জন করতে পারবে?" min="1" value="1">
             <button class="primary" onclick="createTask()">Submit for Admin Review</button>
         </div>
@@ -182,17 +223,22 @@
     <div id="deposit" class="page">
         <button class="back-btn" onclick="showPage('home')">← Back</button>
         <h3 style="margin-bottom:16px;">Deposit</h3>
-        <div class="info-box">
-            <b>bKash:</b> 01600170756<br>
-            <b>Nagad:</b> 01727332914<br><br>
-            এই নম্বরে টাকা পাঠিয়ে Transaction ID দিন। Admin approve করলে ব্যালেন্স যোগ হবে।
-        </div>
+
         <div class="card">
-            <select id="depMethod">
-                <option value="bkash">bKash</option>
-                <option value="nagad">Nagad</option>
-            </select>
-            <input type="number" id="depAmount" placeholder="কত টাকা পাঠিয়েছেন?" min="10">
+            <div style="margin-bottom:8px;font-weight:500;">পেমেন্ট মেথড সিলেক্ট করুন</div>
+            <div class="method-btns">
+                <div class="method-btn active" id="btnBkash" onclick="selectMethod('bkash')">bKash</div>
+                <div class="method-btn" id="btnNagad" onclick="selectMethod('nagad')">Nagad</div>
+            </div>
+
+            <input type="number" id="depAmount" placeholder="কত টাকা পাঠাবেন?" min="10" oninput="updateNumberBox()">
+
+            <div class="number-box" id="numberBox" onclick="copyNumber()" style="display:none;">
+                <div class="label" id="methodLabel">bKash Number</div>
+                <div class="number" id="showNumber">01600170756</div>
+                <div class="hint">👆 ট্যাপ করলে কপি হবে</div>
+            </div>
+
             <input type="text" id="depTrx" placeholder="Transaction ID / TrxID">
             <button class="primary" onclick="submitDeposit()">Submit Deposit</button>
         </div>
@@ -226,9 +272,12 @@
         tg.expand();
 
         let userId = null;
-        let userData = null;
+        let selectedMethod = "bkash";
+        const numbers = {
+            bkash: "01600170756",
+            nagad: "01727332914"
+        };
 
-        // Telegram user info
         if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
             userId = tg.initDataUnsafe.user.id;
             document.getElementById("userName").innerText = tg.initDataUnsafe.user.first_name || "";
@@ -239,7 +288,6 @@
             document.getElementById(pageId).classList.add('active');
 
             document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-            // simple active highlight
             if (pageId === 'home') document.querySelectorAll('.nav-item')[0].classList.add('active');
             if (pageId === 'tasks') document.querySelectorAll('.nav-item')[1].classList.add('active');
             if (pageId === 'create') document.querySelectorAll('.nav-item')[2].classList.add('active');
@@ -247,6 +295,49 @@
 
             if (pageId === 'tasks') loadTasks();
             if (pageId === 'home') loadUser();
+            if (pageId === 'deposit') updateNumberBox();
+        }
+
+        function selectMethod(method) {
+            selectedMethod = method;
+            document.getElementById("btnBkash").classList.toggle("active", method === "bkash");
+            document.getElementById("btnNagad").classList.toggle("active", method === "nagad");
+            updateNumberBox();
+        }
+
+        function updateNumberBox() {
+            const amount = document.getElementById("depAmount").value;
+            const box = document.getElementById("numberBox");
+            if (amount && amount > 0) {
+                box.style.display = "block";
+                document.getElementById("methodLabel").innerText = selectedMethod === "bkash" ? "bKash Number" : "Nagad Number";
+                document.getElementById("showNumber").innerText = numbers[selectedMethod];
+            } else {
+                box.style.display = "none";
+            }
+        }
+
+        function copyNumber() {
+            const number = numbers[selectedMethod];
+            if (navigator.clipboard) {
+                navigator.clipboard.writeText(number).then(() => {
+                    tg.showAlert("নম্বর কপি হয়েছে: " + number);
+                }).catch(() => {
+                    fallbackCopy(number);
+                });
+            } else {
+                fallbackCopy(number);
+            }
+        }
+
+        function fallbackCopy(text) {
+            const input = document.createElement("input");
+            input.value = text;
+            document.body.appendChild(input);
+            input.select();
+            document.execCommand("copy");
+            document.body.removeChild(input);
+            tg.showAlert("নম্বর কপি হয়েছে: " + text);
         }
 
         async function loadUser() {
@@ -256,11 +347,8 @@
                 const data = await res.json();
                 if (data.balance !== undefined) {
                     document.getElementById("balance").innerText = `৳ ${data.balance.toFixed(2)}`;
-                    userData = data;
                 }
-            } catch (e) {
-                console.log(e);
-            }
+            } catch (e) {}
         }
 
         async function loadTasks() {
@@ -312,6 +400,7 @@
                     document.getElementById("taskDesc").value = "";
                     document.getElementById("taskPrice").value = "";
                     document.getElementById("taskSlots").value = "1";
+                    loadUser();
                     showPage('home');
                 } else {
                     tg.showAlert(data.error || "সমস্যা হয়েছে");
@@ -322,12 +411,11 @@
         }
 
         async function submitDeposit() {
-            const method = document.getElementById("depMethod").value;
             const amount = document.getElementById("depAmount").value;
             const trx_id = document.getElementById("depTrx").value.trim();
 
             if (!amount || !trx_id) {
-                tg.showAlert("সব ঘর পূরণ করুন");
+                tg.showAlert("এমাউন্ট এবং Transaction ID দিন");
                 return;
             }
 
@@ -335,13 +423,14 @@
                 const res = await fetch("/api/deposit", {
                     method: "POST",
                     headers: {"Content-Type": "application/json"},
-                    body: JSON.stringify({ user_id: userId, amount, method, trx_id })
+                    body: JSON.stringify({ user_id: userId, amount, method: selectedMethod, trx_id })
                 });
                 const data = await res.json();
                 if (data.success) {
                     tg.showAlert(data.message);
                     document.getElementById("depAmount").value = "";
                     document.getElementById("depTrx").value = "";
+                    document.getElementById("numberBox").style.display = "none";
                     showPage('home');
                 } else {
                     tg.showAlert(data.error || "সমস্যা হয়েছে");
@@ -382,7 +471,6 @@
             }
         }
 
-        // Init
         loadUser();
     </script>
 </body>
