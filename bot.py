@@ -1,9 +1,11 @@
 import os
+import io
+import base64
 import sqlite3
 import asyncio
 from datetime import datetime
 from flask import Flask, request, send_from_directory, jsonify
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, InputFile
 from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
 
 TOKEN = os.environ.get("BOT_TOKEN")
@@ -17,6 +19,7 @@ ADMIN_IDS = list(set([DEFAULT_ADMIN] + env_admins))
 BKASH_NUMBER = "01600170756"
 NAGAD_NUMBER = "01727332914"
 DB_NAME = "social_earn.db"
+MAX_MEDIA = 900000  # ~base64 length limit for SQLite row comfort
 
 if not TOKEN:
     raise ValueError("BOT_TOKEN environment variable is not set!")
@@ -113,6 +116,62 @@ def get_pending_earn(user_id):
     conn.close()
     return float(total)
 
+def decode_data_url(data_url):
+    """Return (bytes, kind) where kind is 'photo' or 'video' or None"""
+    if not data_url or not isinstance(data_url, str):
+        return None, None
+    if not data_url.startswith("data:"):
+        return None, None
+    try:
+        header, b64 = data_url.split(",", 1)
+        raw = base64.b64decode(b64)
+        if "video" in header:
+            return raw, "video"
+        return raw, "photo"
+    except Exception:
+        return None, None
+
+async def send_proof_to_creator(creator_id, worker_name, title, price, proof_text, proof_image, sub_id):
+    """Send proof media to creator in Telegram chat (native view) + Approve/Reject buttons"""
+    caption = f"📩 New Proof\n\nTask: {title}\nWorker: {worker_name}\nReward: ৳{price}\n"
+    if proof_text:
+        caption += f"\nNote: {proof_text[:200]}"
+    kb = InlineKeyboardMarkup([[
+        InlineKeyboardButton("✅ Approve", callback_data=f"c_approve_{sub_id}"),
+        InlineKeyboardButton("❌ Reject", callback_data=f"c_reject_{sub_id}")
+    ]])
+    raw, kind = decode_data_url(proof_image)
+    try:
+        if raw and kind == "photo":
+            await application.bot.send_photo(
+                chat_id=creator_id,
+                photo=InputFile(io.BytesIO(raw), filename="proof.jpg"),
+                caption=caption[:1024],
+                reply_markup=kb
+            )
+        elif raw and kind == "video":
+            await application.bot.send_video(
+                chat_id=creator_id,
+                video=InputFile(io.BytesIO(raw), filename="proof.mp4"),
+                caption=caption[:1024],
+                reply_markup=kb
+            )
+        else:
+            await application.bot.send_message(
+                chat_id=creator_id,
+                text=caption + ("\n\n(No media attached)" if not proof_image else "\n\n(Media in Mini App Reviews)"),
+                reply_markup=kb
+            )
+    except Exception as e:
+        print("send_proof_to_creator error:", e)
+
+def run_async(coro):
+    loop = asyncio.new_event_loop()
+    try:
+        return loop.run_until_complete(coro)
+    finally:
+        loop.close()
+
 app = Flask(__name__)
 application = Application.builder().token(TOKEN).updater(None).build()
 
@@ -172,12 +231,52 @@ async def pending_withdraws(update: Update, context: ContextTypes.DEFAULT_TYPE):
         kb = [[InlineKeyboardButton("Paid", callback_data=f"approve_wd_{w['id']}"), InlineKeyboardButton("Reject", callback_data=f"reject_wd_{w['id']}")]]
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(kb))
 
+def do_review_submission(sub_id, action, actor_id):
+    """Shared review logic. Returns (ok, message)"""
+    conn = get_db(); c = conn.cursor()
+    c.execute("""SELECT s.*, t.creator_id, t.price, t.id as task_id
+               FROM submissions s JOIN tasks t ON s.task_id=t.id WHERE s.id=?""", (sub_id,))
+    sub = c.fetchone()
+    if not sub:
+        conn.close(); return False, "Submission পাওয়া যায়নি"
+    if sub["creator_id"] != actor_id and actor_id not in ADMIN_IDS:
+        conn.close(); return False, "এই Task আপনার না"
+    if sub["status"] != "pending":
+        conn.close(); return False, "ইতিমধ্যে রিভিউ হয়েছে"
+    if action == "approve":
+        c.execute("UPDATE submissions SET status='approved' WHERE id=?", (sub_id,))
+        c.execute("UPDATE users SET balance = balance + ? WHERE telegram_id=?", (sub["price"], sub["worker_id"]))
+        conn.commit(); conn.close()
+        return True, f"Approve। Worker পেয়েছে ৳{sub['price']}"
+    else:
+        c.execute("UPDATE submissions SET status='rejected' WHERE id=?", (sub_id,))
+        c.execute("UPDATE tasks SET remaining_slots = remaining_slots + 1 WHERE id=?", (sub["task_id"],))
+        conn.commit(); conn.close()
+        return True, "Reject। Slot ফেরত।"
+
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
-    if query.from_user.id not in ADMIN_IDS:
-        await query.edit_message_text("Admin নন।"); return
     data = query.data
+    uid = query.from_user.id
+
+    # Creator review from Telegram media message
+    if data.startswith("c_approve_") or data.startswith("c_reject_"):
+        parts = data.split("_")
+        action = "approve" if parts[1] == "approve" else "reject"
+        sub_id = int(parts[2])
+        ok, msg = do_review_submission(sub_id, action, uid)
+        await query.edit_message_caption(caption=(query.message.caption or "") + f"\n\n→ {msg}") if query.message.caption else None
+        try:
+            await query.edit_message_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        if not query.message.caption:
+            await query.edit_message_text((query.message.text or "") + f"\n\n→ {msg}")
+        return
+
+    if uid not in ADMIN_IDS:
+        await query.edit_message_text("Admin নন।"); return
     conn = get_db(); c = conn.cursor()
     if data.startswith("approve_task_"):
         tid = int(data.split("_")[2])
@@ -245,7 +344,6 @@ def api_user(user_id):
 
 @app.route("/api/my_work/<int:user_id>")
 def api_my_work(user_id):
-    """All submissions by this worker (pending/approved/rejected)"""
     conn = get_db(); c = conn.cursor()
     c.execute("""SELECT s.id as sub_id, s.status, s.proof_text, s.created_at,
                t.title, t.price
@@ -258,7 +356,6 @@ def api_my_work(user_id):
 
 @app.route("/api/history/<int:user_id>")
 def api_history(user_id):
-    """Combined history: deposits, withdraws, task earnings"""
     conn = get_db(); c = conn.cursor()
     items = []
     c.execute("SELECT id, amount, method, trx_id, status, created_at FROM deposits WHERE user_id=? ORDER BY id DESC LIMIT 30", (user_id,))
@@ -311,8 +408,8 @@ def api_create_task():
     example_image = data.get("example_image", "")
     if not title or not description or price <= 0 or slots <= 0:
         return jsonify({"error": "সব ঘর পূরণ করুন"}), 400
-    if example_image and len(example_image) > 400000:
-        return jsonify({"error": "Example ছবি অনেক বড়"}), 400
+    if example_image and len(example_image) > MAX_MEDIA:
+        return jsonify({"error": "Example ছবি অনেক বড় — ছোট করুন"}), 400
     user = get_user(user_id) or get_or_create_user(user_id)
     user = get_user(user_id)
     required = price * slots
@@ -344,19 +441,33 @@ def api_submit_proof():
     if task["creator_id"] == user_id:
         conn.close(); return jsonify({"error": "নিজের Task নিজে Complete করতে পারবেন না"}), 400
     if task["require_screenshot"] and not proof_image:
-        conn.close(); return jsonify({"error": "Screenshot দিতে হবে"}), 400
+        conn.close(); return jsonify({"error": "Screenshot/Video দিতে হবে"}), 400
     if not proof_text and not proof_image:
         conn.close(); return jsonify({"error": "প্রুফ দিন"}), 400
     c.execute("SELECT id FROM submissions WHERE task_id=? AND worker_id=? AND status!='rejected'", (task_id, user_id))
     if c.fetchone():
         conn.close(); return jsonify({"error": "ইতিমধ্যে সাবমিট করেছেন"}), 400
-    if proof_image and len(proof_image) > 400000:
-        conn.close(); return jsonify({"error": "ছবি অনেক বড়"}), 400
+    if proof_image and len(proof_image) > MAX_MEDIA:
+        conn.close(); return jsonify({"error": "ফাইল অনেক বড় — ছোট SS/ভিডিও দিন"}), 400
     c.execute("INSERT INTO submissions (task_id,worker_id,proof_text,proof_image,status,created_at) VALUES (?,?,?,?,'pending',?)",
               (task_id, user_id, proof_text, proof_image, datetime.now().isoformat()))
     c.execute("UPDATE tasks SET remaining_slots=remaining_slots-1 WHERE id=?", (task_id,))
-    conn.commit(); conn.close()
-    return jsonify({"success": True, "message": "প্রুফ সাবমিট হয়েছে। Creator রিভিউ করবে।"})
+    sub_id = c.lastrowid
+    conn.commit()
+    worker = get_user(user_id)
+    worker_name = (worker.get("full_name") if worker else None) or str(user_id)
+    creator_id = task["creator_id"]
+    title = task["title"]
+    price = task["price"]
+    conn.close()
+
+    # Send media to creator like Telegram chat
+    try:
+        run_async(send_proof_to_creator(creator_id, worker_name, title, price, proof_text, proof_image, sub_id))
+    except Exception as e:
+        print("notify creator failed:", e)
+
+    return jsonify({"success": True, "message": "প্রুফ সাবমিট। Creator Telegram-এ দেখতে পাবে।"})
 
 @app.route("/api/my_reviews/<int:user_id>")
 def api_my_reviews(user_id):
@@ -371,6 +482,8 @@ def api_my_reviews(user_id):
     rows = [dict(r) for r in c.fetchall()]
     for r in rows:
         r["has_image"] = bool(r.get("proof_image"))
+        media = r.get("proof_image") or ""
+        r["is_video"] = media.startswith("data:video")
     conn.close()
     return jsonify(rows)
 
@@ -382,26 +495,10 @@ def api_review_submission():
     action = data.get("action")
     if action not in ("approve", "reject") or not user_id or not sub_id:
         return jsonify({"error": "Invalid"}), 400
-    conn = get_db(); c = conn.cursor()
-    c.execute("""SELECT s.*, t.creator_id, t.price, t.id as task_id
-               FROM submissions s JOIN tasks t ON s.task_id=t.id WHERE s.id=?""", (sub_id,))
-    sub = c.fetchone()
-    if not sub:
-        conn.close(); return jsonify({"error": "Submission পাওয়া যায়নি"}), 404
-    if sub["creator_id"] != user_id:
-        conn.close(); return jsonify({"error": "এই Task আপনার না"}), 403
-    if sub["status"] != "pending":
-        conn.close(); return jsonify({"error": "ইতিমধ্যে রিভিউ হয়েছে"}), 400
-    if action == "approve":
-        c.execute("UPDATE submissions SET status='approved' WHERE id=?", (sub_id,))
-        c.execute("UPDATE users SET balance = balance + ? WHERE telegram_id=?", (sub["price"], sub["worker_id"]))
-        conn.commit(); conn.close()
-        return jsonify({"success": True, "message": f"Approve। Worker পেয়েছে ৳{sub['price']}"})
-    else:
-        c.execute("UPDATE submissions SET status='rejected' WHERE id=?", (sub_id,))
-        c.execute("UPDATE tasks SET remaining_slots = remaining_slots + 1 WHERE id=?", (sub["task_id"],))
-        conn.commit(); conn.close()
-        return jsonify({"success": True, "message": "Reject। Slot ফেরত।"})
+    ok, msg = do_review_submission(int(sub_id), action, int(user_id))
+    if not ok:
+        return jsonify({"error": msg}), 400
+    return jsonify({"success": True, "message": msg})
 
 @app.route("/api/deposit", methods=["POST"])
 def api_deposit():
