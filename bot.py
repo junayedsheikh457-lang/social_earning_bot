@@ -1,59 +1,93 @@
 import os
 import asyncio
-from flask import Flask, send_from_directory
+from flask import Flask, request, send_from_directory
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, ContextTypes
 
-# Flask App (Frontend সার্ভ করার জন্য)
-app = Flask(__name__, static_folder='.')
+# ================== Environment Variables ==================
+TOKEN = os.environ.get("BOT_TOKEN")
+PORT = int(os.environ.get("PORT", 8000))
+# Render automatically provides this, or you can set it manually
+APP_URL = os.environ.get("RENDER_EXTERNAL_URL", "").rstrip("/")
 
-# Render থেকে PORT এবং Environment থেকে TOKEN নিন
-PORT = int(os.environ.get('PORT', 8000))
-TOKEN = os.environ.get('BOT_TOKEN') 
+if not TOKEN:
+    raise ValueError("BOT_TOKEN environment variable is not set!")
 
-# Mini App এর URL (আপনার Render URL)
-APP_URL = os.environ.get('RENDER_EXTERNAL_URL', 'https://your-app.onrender.com')
+# ================== Flask App ==================
+app = Flask(__name__)
 
-# -------- ওয়েব পেজ লোড করার অংশ --------
-@app.route('/')
-def home():
-    # index.html ফাইলটি রুট URL-এ দেখাবে
-    return send_from_directory('.', 'index.html')
+# ================== Telegram Application ==================
+# updater=None because we will process updates ourselves via Flask
+application = (
+    Application.builder()
+    .token(TOKEN)
+    .updater(None)
+    .build()
+)
 
-# -------- Telegram Bot এর অংশ --------
+# ================== Bot Handlers ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # বটের জন্য একটি ওয়েব অ্যাপ বাটন তৈরি করুন
+    if not APP_URL:
+        await update.message.reply_text("Mini App URL সেট করা নেই। RENDER_EXTERNAL_URL চেক করুন।")
+        return
+
     keyboard = [[InlineKeyboardButton("🚀 Open Mini App", web_app={"url": APP_URL})]]
     reply_markup = InlineKeyboardMarkup(keyboard)
-    
+
     await update.message.reply_text(
-        "আমার Mini App এ স্বাগতম! নিচের বাটনে ক্লিক করুন:",
+        "আমার Mini App এ স্বাগতম! 👇\nনিচের বাটনে ক্লিক করুন:",
         reply_markup=reply_markup
     )
 
-if __name__ == '__main__':
-    if not TOKEN:
-        print("ERROR: BOT_TOKEN is not set in Environment Variables.")
-        exit(1)
-        
-    application = ApplicationBuilder().token(TOKEN).build()
-    application.add_handler(CommandHandler("start", start))
-    
-    # Flask অ্যাপটি ব্যাকগ্রাউন্ডে চালু করুন (HTML ফাইল সার্ভ করার জন্য)
-    # নোট: এটি একটি সিমপ্লিফাইড পদ্ধতি, প্রোডাকশনে গুনিকর্ন ব্যবহার করা উচিত
-    import threading
-    def run_flask():
-        app.run(host="0.0.0.0", port=PORT)
+application.add_handler(CommandHandler("start", start))
 
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
+# ================== Flask Routes ==================
+@app.route("/")
+def home():
+    """Mini App (index.html) সার্ভ করে"""
+    return send_from_directory(".", "index.html")
 
-    # ***** সবচেয়ে গুরুত্বপূর্ণ অংশ *****
-    # run_polling() বাদ দিয়ে run_webhook ব্যবহার করুন
-    application.run_webhook(
-        listen="0.0.0.0",
-        port=PORT,
-        url_path=TOKEN,
-        webhook_url=f"{APP_URL}/{TOKEN}"
-    )
+
+@app.route("/webhook", methods=["POST"])
+def webhook():
+    """Telegram থেকে আপডেট রিসিভ করে প্রসেস করে"""
+    try:
+        update = Update.de_json(request.get_json(force=True), application.bot)
+
+        # Async function কে Flask এর ভিতরে চালানোর জন্য
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(application.process_update(update))
+        loop.close()
+
+        return "ok", 200
+    except Exception as e:
+        print(f"Webhook Error: {e}")
+        return "error", 500
+
+
+# ================== Startup ==================
+async def setup_webhook():
+    """Webhook সেট করে দেয়"""
+    if APP_URL:
+        webhook_url = f"{APP_URL}/webhook"
+        await application.bot.set_webhook(url=webhook_url)
+        print(f"Webhook set to: {webhook_url}")
+    else:
+        print("WARNING: RENDER_EXTERNAL_URL not found. Webhook not set.")
+
+
+def main():
+    # Application initialize করি
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    loop.run_until_complete(application.initialize())
+    loop.run_until_complete(setup_webhook())
+
+    # Flask চালু করি
+    print(f"Starting server on port {PORT}...")
+    app.run(host="0.0.0.0", port=PORT)
+
+
+if __name__ == "__main__":
+    main()
