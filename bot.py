@@ -36,11 +36,16 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT, creator_id INTEGER, title TEXT, description TEXT,
         price REAL, total_slots INTEGER, remaining_slots INTEGER,
         require_screenshot INTEGER DEFAULT 1, example_text TEXT,
+        task_link TEXT, example_image TEXT,
         status TEXT DEFAULT 'pending', created_at TEXT)''')
-    try: c.execute("ALTER TABLE tasks ADD COLUMN require_screenshot INTEGER DEFAULT 1")
-    except: pass
-    try: c.execute("ALTER TABLE tasks ADD COLUMN example_text TEXT")
-    except: pass
+    for col, typ in [
+        ("require_screenshot", "INTEGER DEFAULT 1"),
+        ("example_text", "TEXT"),
+        ("task_link", "TEXT"),
+        ("example_image", "TEXT"),
+    ]:
+        try: c.execute(f"ALTER TABLE tasks ADD COLUMN {col} {typ}")
+        except: pass
     c.execute('''CREATE TABLE IF NOT EXISTS submissions (
         id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER, worker_id INTEGER,
         proof_text TEXT, proof_image TEXT, status TEXT DEFAULT 'pending', created_at TEXT)''')
@@ -100,15 +105,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not APP_URL:
         await update.message.reply_text("Mini App URL সেট করা নেই।")
         return
-    keyboard = [[InlineKeyboardButton("🚀 Open Mini App", web_app=WebAppInfo(url=APP_URL))]]
-    await update.message.reply_text(f"স্বাগতম {user.first_name}! 👋\n\nMini App খুলুন।", reply_markup=InlineKeyboardMarkup(keyboard))
+    keyboard = [[InlineKeyboardButton("Open Mini App", web_app=WebAppInfo(url=APP_URL))]]
+    await update.message.reply_text(f"স্বাগতম {user.first_name}!\n\nMini App খুলুন।", reply_markup=InlineKeyboardMarkup(keyboard))
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
         await update.message.reply_text("আপনি Admin নন।")
         return
-    conn = get_db()
-    c = conn.cursor()
+    conn = get_db(); c = conn.cursor()
     c.execute("SELECT COUNT(*) as cnt FROM tasks WHERE status='pending'")
     pt = c.fetchone()["cnt"]
     c.execute("SELECT COUNT(*) as cnt FROM deposits WHERE status='pending'")
@@ -116,7 +120,7 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.execute("SELECT COUNT(*) as cnt FROM withdraws WHERE status='pending'")
     pw = c.fetchone()["cnt"]
     conn.close()
-    await update.message.reply_text(f"🔐 Admin\nPending Tasks: {pt}\nDeposits: {pd}\nWithdraws: {pw}\n\n/pending_tasks\n/pending_deposits\n/pending_withdraws")
+    await update.message.reply_text(f"Admin\nPending Tasks: {pt}\nDeposits: {pd}\nWithdraws: {pw}\n\n/pending_tasks\n/pending_deposits\n/pending_withdraws")
 
 async def pending_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
@@ -126,8 +130,9 @@ async def pending_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tasks = c.fetchall(); conn.close()
     if not tasks: await update.message.reply_text("কোনো Pending Task নেই।"); return
     for t in tasks:
-        text = f"📋 Task #{t['id']}\n{t['title']}\n৳{t['price']} x {t['total_slots']}\nCreator: {t['full_name']}"
-        kb = [[InlineKeyboardButton("✅", callback_data=f"approve_task_{t['id']}"), InlineKeyboardButton("❌", callback_data=f"reject_task_{t['id']}")]]
+        text = f"Task #{t['id']}\n{t['title']}\n৳{t['price']} x {t['total_slots']}\nCreator: {t['full_name']}"
+        if t["task_link"]: text += f"\nLink: {t['task_link']}"
+        kb = [[InlineKeyboardButton("Approve", callback_data=f"approve_task_{t['id']}"), InlineKeyboardButton("Reject", callback_data=f"reject_task_{t['id']}")]]
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(kb))
 
 async def pending_deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -138,8 +143,8 @@ async def pending_deposits(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rows = c.fetchall(); conn.close()
     if not rows: await update.message.reply_text("কোনো Pending Deposit নেই।"); return
     for d in rows:
-        text = f"💳 #{d['id']} {d['full_name']}\n৳{d['amount']} {d['method']}\n{d['trx_id']}"
-        kb = [[InlineKeyboardButton("✅", callback_data=f"approve_dep_{d['id']}"), InlineKeyboardButton("❌", callback_data=f"reject_dep_{d['id']}")]]
+        text = f"#{d['id']} {d['full_name']}\n৳{d['amount']} {d['method']}\n{d['trx_id']}"
+        kb = [[InlineKeyboardButton("Approve", callback_data=f"approve_dep_{d['id']}"), InlineKeyboardButton("Reject", callback_data=f"reject_dep_{d['id']}")]]
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(kb))
 
 async def pending_withdraws(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -150,8 +155,8 @@ async def pending_withdraws(update: Update, context: ContextTypes.DEFAULT_TYPE):
     rows = c.fetchall(); conn.close()
     if not rows: await update.message.reply_text("কোনো Pending Withdraw নেই।"); return
     for w in rows:
-        text = f"💸 #{w['id']} {w['full_name']}\n৳{w['amount']} {w['method']} {w['number']}"
-        kb = [[InlineKeyboardButton("✅ Paid", callback_data=f"approve_wd_{w['id']}"), InlineKeyboardButton("❌", callback_data=f"reject_wd_{w['id']}")]]
+        text = f"#{w['id']} {w['full_name']}\n৳{w['amount']} {w['method']} {w['number']}"
+        kb = [[InlineKeyboardButton("Paid", callback_data=f"approve_wd_{w['id']}"), InlineKeyboardButton("Reject", callback_data=f"reject_wd_{w['id']}")]]
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(kb))
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -164,7 +169,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if data.startswith("approve_task_"):
         tid = int(data.split("_")[2])
         c.execute("UPDATE tasks SET status='approved' WHERE id=?", (tid,)); conn.commit()
-        await query.edit_message_text(f"✅ Task #{tid} Approved")
+        await query.edit_message_text(f"Task #{tid} Approved")
     elif data.startswith("reject_task_"):
         tid = int(data.split("_")[2])
         c.execute("SELECT * FROM tasks WHERE id=?", (tid,)); t = c.fetchone()
@@ -172,32 +177,32 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             refund = t["price"] * t["total_slots"]
             c.execute("UPDATE users SET balance=balance+? WHERE telegram_id=?", (refund, t["creator_id"]))
             c.execute("UPDATE tasks SET status='rejected' WHERE id=?", (tid,)); conn.commit()
-            await query.edit_message_text(f"❌ Rejected. ৳{refund} ফেরত")
-        else: await query.edit_message_text("ইতিমধ্যে প্রসেস")
+            await query.edit_message_text(f"Rejected. ৳{refund} ফেরত")
+        else: await query.edit_message_text("Already processed")
     elif data.startswith("approve_dep_"):
         did = int(data.split("_")[2])
         c.execute("SELECT * FROM deposits WHERE id=?", (did,)); d = c.fetchone()
         if d and d["status"]=="pending":
             c.execute("UPDATE deposits SET status='approved' WHERE id=?", (did,))
             c.execute("UPDATE users SET balance=balance+? WHERE telegram_id=?", (d["amount"], d["user_id"])); conn.commit()
-            await query.edit_message_text(f"✅ Deposit Approved ৳{d['amount']}")
-        else: await query.edit_message_text("ইতিমধ্যে প্রসেস")
+            await query.edit_message_text(f"Deposit Approved ৳{d['amount']}")
+        else: await query.edit_message_text("Already processed")
     elif data.startswith("reject_dep_"):
         did = int(data.split("_")[2])
         c.execute("UPDATE deposits SET status='rejected' WHERE id=?", (did,)); conn.commit()
-        await query.edit_message_text(f"❌ Deposit Rejected")
+        await query.edit_message_text("Deposit Rejected")
     elif data.startswith("approve_wd_"):
         wid = int(data.split("_")[2])
         c.execute("UPDATE withdraws SET status='approved' WHERE id=?", (wid,)); conn.commit()
-        await query.edit_message_text(f"✅ Withdraw Approved")
+        await query.edit_message_text("Withdraw Approved")
     elif data.startswith("reject_wd_"):
         wid = int(data.split("_")[2])
         c.execute("SELECT * FROM withdraws WHERE id=?", (wid,)); w = c.fetchone()
         if w and w["status"]=="pending":
             c.execute("UPDATE users SET balance=balance+? WHERE telegram_id=?", (w["amount"], w["user_id"]))
             c.execute("UPDATE withdraws SET status='rejected' WHERE id=?", (wid,)); conn.commit()
-            await query.edit_message_text(f"❌ Withdraw Rejected, টাকা ফেরত")
-        else: await query.edit_message_text("ইতিমধ্যে প্রসেস")
+            await query.edit_message_text("Withdraw Rejected, টাকা ফেরত")
+        else: await query.edit_message_text("Already processed")
     conn.close()
 
 application.add_handler(CommandHandler("start", start))
@@ -222,7 +227,7 @@ def api_user(user_id):
 def api_tasks():
     conn = get_db(); c = conn.cursor()
     c.execute("""SELECT t.id, t.title, t.description, t.price, t.total_slots, t.remaining_slots,
-               t.require_screenshot, t.example_text, t.creator_id, u.full_name as creator_name
+               t.require_screenshot, t.example_text, t.task_link, t.creator_id, u.full_name as creator_name
                FROM tasks t JOIN users u ON t.creator_id=u.telegram_id
                WHERE t.status='approved' AND t.remaining_slots>0 ORDER BY t.id DESC""")
     tasks = [dict(r) for r in c.fetchall()]; conn.close()
@@ -246,8 +251,14 @@ def api_create_task():
     slots = int(data.get("slots", 1))
     require_screenshot = 1 if data.get("require_screenshot", True) else 0
     example_text = data.get("example_text", "").strip()
+    task_link = data.get("task_link", "").strip()
+    example_image = data.get("example_image", "")
+
     if not title or not description or price <= 0 or slots <= 0:
         return jsonify({"error": "সব ঘর পূরণ করুন"}), 400
+    if example_image and len(example_image) > 400000:
+        return jsonify({"error": "Example ছবি অনেক বড়"}), 400
+
     user = get_user(user_id) or get_or_create_user(user_id)
     user = get_user(user_id)
     required = price * slots
@@ -255,8 +266,10 @@ def api_create_task():
         return jsonify({"error": f"অপর্যাপ্ত ব্যালেন্স! ৳{required:.0f} লাগবে"}), 400
     update_balance(user_id, -required)
     conn = get_db(); c = conn.cursor()
-    c.execute("INSERT INTO tasks (creator_id,title,description,price,total_slots,remaining_slots,require_screenshot,example_text,status,created_at) VALUES (?,?,?,?,?,?,?,?,'pending',?)",
-              (user_id, title, description, price, slots, slots, require_screenshot, example_text, datetime.now().isoformat()))
+    c.execute("""INSERT INTO tasks
+        (creator_id,title,description,price,total_slots,remaining_slots,require_screenshot,example_text,task_link,example_image,status,created_at)
+        VALUES (?,?,?,?,?,?,?,?,?,?,'pending',?)""",
+        (user_id, title, description, price, slots, slots, require_screenshot, example_text, task_link, example_image, datetime.now().isoformat()))
     conn.commit(); tid = c.lastrowid; conn.close()
     return jsonify({"success": True, "task_id": tid, "message": f"Task সাবমিট। ৳{required:.0f} কেটে রাখা হয়েছে।"})
 
@@ -274,11 +287,12 @@ def api_submit_proof():
     task = c.fetchone()
     if not task:
         conn.close(); return jsonify({"error": "Task নেই বা স্লট শেষ"}), 400
-    # নিজের Task নিজে করতে পারবে না
     if task["creator_id"] == user_id:
         conn.close(); return jsonify({"error": "নিজের Task নিজে Complete করতে পারবেন না"}), 400
-    if task["require_screenshot"] and not proof_image and not proof_text:
-        conn.close(); return jsonify({"error": "Screenshot বা প্রুফ দিন"}), 400
+    if task["require_screenshot"] and not proof_image:
+        conn.close(); return jsonify({"error": "Screenshot দিতে হবে"}), 400
+    if not proof_text and not proof_image:
+        conn.close(); return jsonify({"error": "প্রুফ দিন"}), 400
     c.execute("SELECT id FROM submissions WHERE task_id=? AND worker_id=? AND status!='rejected'", (task_id, user_id))
     if c.fetchone():
         conn.close(); return jsonify({"error": "ইতিমধ্যে সাবমিট করেছেন"}), 400
@@ -290,7 +304,6 @@ def api_submit_proof():
     conn.commit(); conn.close()
     return jsonify({"success": True, "message": "প্রুফ সাবমিট হয়েছে। Creator রিভিউ করবে।"})
 
-# Creator: pending submissions on my tasks
 @app.route("/api/my_reviews/<int:user_id>")
 def api_my_reviews(user_id):
     conn = get_db(); c = conn.cursor()
@@ -302,10 +315,9 @@ def api_my_reviews(user_id):
                WHERE t.creator_id = ? AND s.status = 'pending'
                ORDER BY s.id DESC""", (user_id,))
     rows = [dict(r) for r in c.fetchall()]
-    # Don't send full huge base64 in list - only flag
     for r in rows:
         r["has_image"] = bool(r.get("proof_image"))
-        r["proof_image"] = None  # remove heavy data from list
+        # keep proof_image so creator can see screenshot
     conn.close()
     return jsonify(rows)
 
@@ -322,9 +334,9 @@ def api_submission_detail(sub_id):
 @app.route("/api/review_submission", methods=["POST"])
 def api_review_submission():
     data = request.json
-    user_id = data.get("user_id")  # creator
+    user_id = data.get("user_id")
     sub_id = data.get("sub_id")
-    action = data.get("action")  # approve / reject
+    action = data.get("action")
     if action not in ("approve", "reject") or not user_id or not sub_id:
         return jsonify({"error": "Invalid"}), 400
     conn = get_db(); c = conn.cursor()
@@ -337,19 +349,16 @@ def api_review_submission():
         conn.close(); return jsonify({"error": "এই Task আপনার না"}), 403
     if sub["status"] != "pending":
         conn.close(); return jsonify({"error": "ইতিমধ্যে রিভিউ হয়েছে"}), 400
-
     if action == "approve":
         c.execute("UPDATE submissions SET status='approved' WHERE id=?", (sub_id,))
-        # Pay the worker
         c.execute("UPDATE users SET balance = balance + ? WHERE telegram_id=?", (sub["price"], sub["worker_id"]))
         conn.commit(); conn.close()
-        return jsonify({"success": True, "message": f"Approve করা হয়েছে। Worker পেয়েছে ৳{sub['price']}"})
+        return jsonify({"success": True, "message": f"Approve। Worker পেয়েছে ৳{sub['price']}"})
     else:
         c.execute("UPDATE submissions SET status='rejected' WHERE id=?", (sub_id,))
-        # Slot ফেরত
         c.execute("UPDATE tasks SET remaining_slots = remaining_slots + 1 WHERE id=?", (sub["task_id"],))
         conn.commit(); conn.close()
-        return jsonify({"success": True, "message": "Reject করা হয়েছে। Slot ফেরত দেওয়া হয়েছে।"})
+        return jsonify({"success": True, "message": "Reject। Slot ফেরত।"})
 
 @app.route("/api/deposit", methods=["POST"])
 def api_deposit():
