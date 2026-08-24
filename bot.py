@@ -18,8 +18,34 @@ ADMIN_IDS = list(set([DEFAULT_ADMIN] + env_admins))
 
 BKASH_NUMBER = "01600170756"
 NAGAD_NUMBER = "01727332914"
-DB_NAME = "social_earn.db"
-MAX_MEDIA = 900000  # ~base64 length limit for SQLite row comfort
+MAX_MEDIA = 900000
+
+# ---- Persistent DB path (Render Disk mount at /var/data recommended) ----
+def _resolve_db_path():
+    # 1) explicit full path
+    if os.environ.get("DB_PATH"):
+        path = os.environ["DB_PATH"]
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        return path
+    # 2) DB_DIR env (e.g. /var/data from Render Disk)
+    db_dir = os.environ.get("DB_DIR", "/var/data")
+    try:
+        os.makedirs(db_dir, exist_ok=True)
+        test = os.path.join(db_dir, ".write_test")
+        with open(test, "w") as f:
+            f.write("ok")
+        os.remove(test)
+        return os.path.join(db_dir, "social_earn.db")
+    except Exception:
+        pass
+    # 3) local ./data fallback (ephemeral on free Render — will wipe on redeploy)
+    local = os.path.join(os.getcwd(), "data")
+    os.makedirs(local, exist_ok=True)
+    print("WARNING: Using local data/ — set Render Disk at /var/data or DB_DIR to keep data after restart")
+    return os.path.join(local, "social_earn.db")
+
+DB_NAME = _resolve_db_path()
+print(f"Database file: {DB_NAME}")
 
 if not TOKEN:
     raise ValueError("BOT_TOKEN environment variable is not set!")
@@ -33,8 +59,9 @@ def normalize_url(url):
     return url
 
 def get_db():
-    conn = sqlite3.connect(DB_NAME)
+    conn = sqlite3.connect(DB_NAME, timeout=30)
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
     return conn
 
 def init_db():
@@ -117,7 +144,6 @@ def get_pending_earn(user_id):
     return float(total)
 
 def decode_data_url(data_url):
-    """Return (bytes, kind) where kind is 'photo' or 'video' or None"""
     if not data_url or not isinstance(data_url, str):
         return None, None
     if not data_url.startswith("data:"):
@@ -132,7 +158,6 @@ def decode_data_url(data_url):
         return None, None
 
 async def send_proof_to_creator(creator_id, worker_name, title, price, proof_text, proof_image, sub_id):
-    """Send proof media to creator in Telegram chat (native view) + Approve/Reject buttons"""
     caption = f"📩 New Proof\n\nTask: {title}\nWorker: {worker_name}\nReward: ৳{price}\n"
     if proof_text:
         caption += f"\nNote: {proof_text[:200]}"
@@ -182,7 +207,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("Mini App URL সেট করা নেই।")
         return
     keyboard = [[InlineKeyboardButton("Open Mini App", web_app=WebAppInfo(url=APP_URL))]]
-    await update.message.reply_text(f"স্বাগতম {user.first_name}!\n\nMini App খুলুন।", reply_markup=InlineKeyboardMarkup(keyboard))
+    await update.message.reply_text(
+        f"স্বাগতম {user.first_name}!\n\nMini App খুলুন।\n\nPC তে: Telegram Desktop latest version ব্যবহার করুন।",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 
 async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
@@ -191,8 +219,11 @@ async def admin_panel(update: Update, context: ContextTypes.DEFAULT_TYPE):
     c.execute("SELECT COUNT(*) as cnt FROM tasks WHERE status='pending'"); pt = c.fetchone()["cnt"]
     c.execute("SELECT COUNT(*) as cnt FROM deposits WHERE status='pending'"); pd = c.fetchone()["cnt"]
     c.execute("SELECT COUNT(*) as cnt FROM withdraws WHERE status='pending'"); pw = c.fetchone()["cnt"]
+    c.execute("SELECT COUNT(*) as cnt FROM users"); uc = c.fetchone()["cnt"]
     conn.close()
-    await update.message.reply_text(f"Admin\nPending Tasks: {pt}\nDeposits: {pd}\nWithdraws: {pw}\n\n/pending_tasks\n/pending_deposits\n/pending_withdraws")
+    await update.message.reply_text(
+        f"Admin\nUsers: {uc}\nPending Tasks: {pt}\nDeposits: {pd}\nWithdraws: {pw}\nDB: {DB_NAME}\n\n/pending_tasks\n/pending_deposits\n/pending_withdraws"
+    )
 
 async def pending_tasks(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id not in ADMIN_IDS:
@@ -232,7 +263,6 @@ async def pending_withdraws(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(kb))
 
 def do_review_submission(sub_id, action, actor_id):
-    """Shared review logic. Returns (ok, message)"""
     conn = get_db(); c = conn.cursor()
     c.execute("""SELECT s.*, t.creator_id, t.price, t.id as task_id
                FROM submissions s JOIN tasks t ON s.task_id=t.id WHERE s.id=?""", (sub_id,))
@@ -260,19 +290,21 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = query.data
     uid = query.from_user.id
 
-    # Creator review from Telegram media message
     if data.startswith("c_approve_") or data.startswith("c_reject_"):
         parts = data.split("_")
         action = "approve" if parts[1] == "approve" else "reject"
         sub_id = int(parts[2])
         ok, msg = do_review_submission(sub_id, action, uid)
-        await query.edit_message_caption(caption=(query.message.caption or "") + f"\n\n→ {msg}") if query.message.caption else None
         try:
-            await query.edit_message_reply_markup(reply_markup=None)
+            if query.message.caption:
+                await query.edit_message_caption(caption=(query.message.caption or "") + f"\n\n→ {msg}", reply_markup=None)
+            else:
+                await query.edit_message_text((query.message.text or "") + f"\n\n→ {msg}", reply_markup=None)
         except Exception:
-            pass
-        if not query.message.caption:
-            await query.edit_message_text((query.message.text or "") + f"\n\n→ {msg}")
+            try:
+                await query.edit_message_reply_markup(reply_markup=None)
+            except Exception:
+                pass
         return
 
     if uid not in ADMIN_IDS:
@@ -460,13 +492,10 @@ def api_submit_proof():
     title = task["title"]
     price = task["price"]
     conn.close()
-
-    # Send media to creator like Telegram chat
     try:
         run_async(send_proof_to_creator(creator_id, worker_name, title, price, proof_text, proof_image, sub_id))
     except Exception as e:
         print("notify creator failed:", e)
-
     return jsonify({"success": True, "message": "প্রুফ সাবমিট। Creator Telegram-এ দেখতে পাবে।"})
 
 @app.route("/api/my_reviews/<int:user_id>")
@@ -552,7 +581,7 @@ def main():
     loop = asyncio.new_event_loop(); asyncio.set_event_loop(loop)
     loop.run_until_complete(application.initialize())
     loop.run_until_complete(setup_webhook())
-    print(f"Port {PORT} | Admins {ADMIN_IDS}")
+    print(f"Port {PORT} | Admins {ADMIN_IDS} | DB {DB_NAME}")
     app.run(host="0.0.0.0", port=PORT)
 
 if __name__ == "__main__":
