@@ -1,0 +1,2 @@
+<!doctype html>
+<html lang="bn"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Update Fashion Mart</title><style>/* Full site is in update-fashion-mart/index.html */</style></head><body><script>location.href='update-fashion-mart/index.html'</script></body></html>
