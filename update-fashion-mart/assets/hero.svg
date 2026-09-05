@@ -1,1 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 480"><rect width="860" height="480" fill="#f3e8d7"/><rect width="860" height="60" fill="#10263c"/><rect y="420" width="860" height="60" fill="#10263c"/><text x="430" y="145" text-anchor="middle" font-family="Arial" font-size="54" font-weight="900" fill="#10263c">UPDATE</text><text x="430" y="205" text-anchor="middle" font-family="Arial" font-size="62" font-weight="900" fill="#10263c">FASHION</text><text x="430" y="260" text-anchor="middle" font-family="Georgia" font-size="55" font-weight="700" fill="#a37b38">MART</text><text x="430" y="295" text-anchor="middle" font-family="Georgia" font-size="18" fill="#6f5531">Elegance in Every Choice</text><text x="430" y="445" text-anchor="middle" font-family="Arial" font-size="13" fill="#fff">STAY STYLISH • STAY CONFIDENT • STAY YOU</text></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 860 480">
+<defs>
+ <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#10263c"/><stop offset=".5" stop-color="#173b5b"/><stop offset="1" stop-color="#0b1c2e"/></linearGradient>
+ <linearGradient id="cream" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#fff9ed"/><stop offset="1" stop-color="#ead9bd"/></linearGradient>
+ <linearGradient id="gold" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f5d889"/><stop offset=".5" stop-color="#b9852f"/><stop offset="1" stop-color="#f6e3a7"/></linearGradient>
+ <filter id="shadow"><feDropShadow dx="0" dy="5" stdDeviation="5" flood-opacity=".3"/></filter>
+</defs>
+<rect width="860" height="480" fill="url(#bg)"/>
+<path d="M155 0H705Q750 80 705 240Q750 400 705 480H155Q110 400 155 240Q110 80 155 0Z" fill="url(#cream)"/>
+<path d="M0 380Q85 335 150 380T300 380" fill="none" stroke="url(#gold)" stroke-width="5" opacity=".7"/>
+<path d="M560 390Q650 345 720 390T860 390" fill="none" stroke="url(#gold)" stroke-width="5" opacity=".7"/>
+<!-- left dresses -->
+<g filter="url(#shadow)">
+ <path d="M55 145h65l22 40 25 178H30l25-178z" fill="#121b29" stroke="#d5a44a" stroke-width="3"/>
+ <path d="M125 145h55l20 42 18 176H105l22-176z" fill="#263d58" stroke="#d5a44a" stroke-width="3"/>
+ <path d="M195 145h58l22 42 15 176H180l20-176z" fill="#6e2340" stroke="#d5a44a" stroke-width="3"/>
+ <path d="M268 145h60l20 42 17 176H250l20-176z" fill="#23463f" stroke="#d5a44a" stroke-width="3"/>
+</g>
+<path d="M52 145q35-45 68 0M122 145q30-45 58 0M193 145q30-45 60 0M267 145q30-45 61 0" fill="#0d1520" stroke="#d5a44a" stroke-width="3"/>
+<!-- right dresses -->
+<g filter="url(#shadow)">
+ <path d="M600 145h63l24 42 35 176H565l35-176z" fill="#243f63" stroke="#cda048" stroke-width="3"/>
+ <path d="M682 145h62l22 42 28 176H652l30-176z" fill="#6e2340" stroke="#cda048" stroke-width="3"/>
+ <path d="M755 145h55l20 42 25 176H730l25-176z" fill="#ead5b2" stroke="#cda048" stroke-width="3"/>
+</g>
+<path d="M600 145q31-46 63 0M682 145q30-46 62 0M755 145q28-46 55 0" fill="#111c2c" stroke="#cda048" stroke-width="3"/>
+<!-- center branding -->
+<rect x="392" y="28" width="76" height="82" rx="8" fill="#10263c" stroke="#d8b45b" stroke-width="4"/>
+<text x="430" y="78" text-anchor="middle" font-family="Georgia" font-size="42" font-weight="700" fill="#f3d58a">U</text>
+<text x="430" y="151" text-anchor="middle" font-family="Arial" font-size="44" font-weight="900" letter-spacing="2" fill="#10263c">UPDATE</text>
+<text x="430" y="207" text-anchor="middle" font-family="Arial" font-size="55" font-weight="900" letter-spacing="1" fill="#10263c">FASHION</text>
+<text x="430" y="258" text-anchor="middle" font-family="Georgia" font-size="52" font-weight="700" letter-spacing="3" fill="#a77a32">MART</text>
+<path d="M330 275H530" stroke="#b28a45"/>
+<text x="430" y="304" text-anchor="middle" font-family="Georgia" font-size="17" font-style="italic" fill="#654d32">Elegance in Every Choice</text>
+<!-- quality icons -->
+<g fill="#10263c" stroke="#d4ad5a" stroke-width="2"><circle cx="345" cy="355" r="20"/><circle cx="397" cy="355" r="20"/><circle cx="449" cy="355" r="20"/><circle cx="501" cy="355" r="20"/></g>
+<g fill="#fff" font-family="Arial" font-size="9" text-anchor="middle"><text x="345" y="388">PREMIUM</text><text x="397" y="388">TRENDY</text><text x="449" y="388">BEST PRICE</text><text x="501" y="388">SATISFACTION</text></g>
+<rect x="315" y="430" width="230" height="25" rx="12" fill="#10263c" stroke="#d6b265" stroke-width="2"/>
+<text x="430" y="447" text-anchor="middle" font-family="Arial" font-size="11" font-weight="700" fill="#fff">STAY STYLISH • STAY CONFIDENT • STAY YOU</text>
+</svg>
