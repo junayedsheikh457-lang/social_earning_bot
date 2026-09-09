@@ -40,17 +40,61 @@ function token(u){return jwt.sign({id:u.id,email:u.email},JWT_SECRET,{expiresIn:
 async function auth(req,res,next){try{const h=req.headers.authorization||'';req.user=jwt.verify(h.startsWith('Bearer ')?h.slice(7):'',JWT_SECRET);next()}catch(e){res.status(401).json({error:'Authentication required'})}}
 function admin(req,res,next){if(req.headers['x-admin-key']!==ADMIN_KEY)return res.status(403).json({error:'Admin access denied'});next()}
 
-async function binanceTicker(){
-  const r=await fetch('https://api.binance.com/api/v3/ticker/price?symbol=BTCUSDT',{headers:{accept:'application/json'}});
-  if(!r.ok)throw new Error('Binance market unavailable');
+async function coinbaseTicker(product){
+  const r=await fetch('https://api.exchange.coinbase.com/products/'+product+'/ticker',{headers:{accept:'application/json'}});
+  if(!r.ok)throw new Error('Coinbase market unavailable');
   const j=await r.json();
   const price=Number(j.price);
-  if(!Number.isFinite(price))throw new Error('Invalid Binance price');
+  if(!Number.isFinite(price))throw new Error('Invalid Coinbase price');
   return price;
 }
 
-app.get('/api/health',(req,res)=>res.json({ok:true,service:'FundedEdge API',storage:usePg?'postgres':'fallback-file',market:'Binance BTCUSDT live',time:new Date().toISOString()}));
-app.get('/api/market/btcusdt',async(req,res)=>{try{const price=await binanceTicker();res.set('Cache-Control','no-store');res.json({symbol:'BTCUSDT',displaySymbol:'BTC/USD',price,timestamp:Date.now(),source:'Binance spot market'})}catch(e){res.status(503).json({error:'Live market temporarily unavailable'})}});
+const OANDA_INSTRUMENTS={XAUUSD:'XAU_USD',EURUSD:'EUR_USD',JPYUSD:'JPY_USD',CHFUSD:'CHF_USD',GBPUSD:'GBP_USD',AUDUSD:'AUD_USD'};
+const OTC_BASE={BTCUSD:78000,ETHUSD:3200,XAUUSD:2350,EURUSD:1.085,JPYUSD:0.0067,CHFUSD:1.12,GBPUSD:1.27,AUDUSD:0.66};
+function otcPrice(key,ms=Date.now()){
+  const base=OTC_BASE[key];
+  if(!base)throw new Error('Unknown OTC market');
+  const t=ms/1000;
+  const wave=Math.sin(t/19)+0.55*Math.sin(t/7.3)+0.25*Math.sin(t/3.1);
+  const pct=key==='BTCUSD'||key==='ETHUSD'?0.00035:0.00018;
+  return base*(1+pct*wave);
+}
+async function oandaTicker(key){
+  const token=process.env.OANDA_TOKEN;
+  const account=process.env.OANDA_ACCOUNT_ID;
+  const instrument=OANDA_INSTRUMENTS[key];
+  if(!token||!account||!instrument)throw new Error('OANDA not configured');
+  const host=process.env.OANDA_ENV==='live'?'https://api-fxtrade.oanda.com':'https://api-fxpractice.oanda.com';
+  const r=await fetch(host+'/v3/accounts/'+encodeURIComponent(account)+'/pricing?instruments='+encodeURIComponent(instrument),{headers:{Authorization:'Bearer '+token,accept:'application/json'}});
+  if(!r.ok)throw new Error('OANDA market unavailable');
+  const j=await r.json();
+  const q=j.prices&&j.prices[0];
+  const bid=Number(q&&q.bids&&q.bids[0]&&q.bids[0].price),ask=Number(q&&q.asks&&q.asks[0]&&q.asks[0].price);
+  const price=(bid+ask)/2;
+  if(!Number.isFinite(price))throw new Error('Invalid OANDA price');
+  return price;
+}
+function marketCandles(key,current,sec,count=100){
+  const now=Math.floor(Date.now()/1000/sec)*sec,arr=[];
+  for(let i=count-1;i>=0;i--){
+    const t=(now-i*sec)*1000;
+    const c=otcPrice(key,t),o=otcPrice(key,t-sec*1000),h=Math.max(o,c)*(1+0.00005),l=Math.min(o,c)*(1-0.00005);
+    arr.push({time:Math.floor(t/1000),open:o,high:h,low:l,close:c});
+  }
+  if(arr.length)arr[arr.length-1]={...arr[arr.length-1],close:current,high:Math.max(arr[arr.length-1].high,current),low:Math.min(arr[arr.length-1].low,current)};
+  return arr;
+}
+async function marketTicker(symbol){
+  const otc=/^(.+)-OTC$/.exec(symbol);
+  if(otc)return {price:otcPrice(otc[1]),source:'FundedEdge simulated OTC'};
+  if(symbol==='BTC-USD')return {price:await coinbaseTicker('BTC-USD'),source:'Coinbase'};
+  if(symbol==='ETH-USD')return {price:await coinbaseTicker('ETH-USD'),source:'Coinbase'};
+  const key=symbol.replace('=X','');
+  return {price:await oandaTicker(key),source:'OANDA'};
+}
+
+app.get('/api/health',(req,res)=>res.json({ok:true,service:'FundedEdge API',storage:usePg?'postgres':'fallback-file',market:'Coinbase BTC/ETH + OANDA FX/Gold + simulated OTC',time:new Date().toISOString()}));
+app.get('/api/market/:symbol',async(req,res)=>{try{const symbol=decodeURIComponent(req.params.symbol);const m=await marketTicker(symbol);res.set('Cache-Control','no-store');res.json({symbol,displaySymbol:symbol.replace('=X','').replace('-OTC',' OTC'),price:m.price,timestamp:Date.now(),source:m.source});}catch(e){res.status(503).json({error:'Market temporarily unavailable'});}});
 
 app.post('/api/auth/register',async(req,res)=>{try{const{name,email,password}=req.body;if(!name||!email||!password||password.length<8)return res.status(400).json({error:'Name, email and an 8+ character password are required'});const em=email.toLowerCase().trim();const hash=await bcrypt.hash(password,12);if(usePg){const r=await pool.query('INSERT INTO users(name,email,password_hash) VALUES($1,$2,$3) RETURNING id,name,email',[name,em,hash]);return res.json({token:token(r.rows[0]),user:r.rows[0]})}const d=dbRead();if(d.users.some(x=>x.email===em))return res.status(400).json({error:'Email already registered'});const u={id:d.next.user++,name,email:em,password_hash:hash,created_at:new Date().toISOString()};d.users.push(u);dbWrite(d);res.json({token:token(u),user:{id:u.id,name:u.name,email:u.email}})}catch(e){res.status(400).json({error:'Registration failed'})}});
 app.post('/api/auth/login',async(req,res)=>{try{const em=String(req.body.email||'').toLowerCase().trim();const pw=req.body.password||'';let u;if(usePg){const r=await pool.query('SELECT * FROM users WHERE email=$1',[em]);u=r.rows[0]}else u=dbRead().users.find(x=>x.email===em);if(!u||!(await bcrypt.compare(pw,u.password_hash)))return res.status(401).json({error:'Invalid email or password'});res.json({token:token(u),user:{id:u.id,name:u.name,email:u.email}})}catch(e){res.status(500).json({error:'Login failed'})}});
@@ -63,13 +107,13 @@ app.get('/api/orders',auth,async(req,res)=>{if(usePg){const r=await pool.query('
 app.get('/api/accounts/:id',auth,async(req,res)=>{if(usePg){const r=await pool.query('SELECT * FROM accounts WHERE id=$1 AND user_id=$2',[req.params.id,req.user.id]);if(!r.rows[0])return res.status(404).json({error:'Account not found'});const t=await pool.query('SELECT * FROM trades WHERE account_id=$1 ORDER BY id DESC LIMIT 100',[req.params.id]);return res.json({account:r.rows[0],trades:t.rows})}const d=dbRead(),a=d.accounts.find(x=>x.id===Number(req.params.id)&&x.user_id===req.user.id);if(!a)return res.status(404).json({error:'Account not found'});res.json({account:a,trades:d.trades.filter(x=>x.account_id===a.id).sort((a,b)=>b.id-a.id).slice(0,100)})});
 
 app.post('/api/trades',auth,async(req,res)=>{try{const{accountId,direction,amount,expiry}=req.body;const amt=Number(amount);if(!['CALL','PUT'].includes(direction)||!['60s','5m','15m'].includes(expiry)||!Number.isFinite(amt)||amt<=0)return res.status(400).json({error:'Invalid trade'});let a;if(usePg)a=(await pool.query('SELECT * FROM accounts WHERE id=$1 AND user_id=$2 AND status=$3',[accountId,req.user.id,'active'])).rows[0];else a=dbRead().accounts.find(x=>x.id===Number(accountId)&&x.user_id===req.user.id&&x.status==='active');if(!a)return res.status(404).json({error:'Active account not found'});if(amt>Number(a.balance)*0.2)return res.status(400).json({error:'Trade amount exceeds 20% account limit'});
-  const entry=await binanceTicker();
+  const entry=await coinbaseTicker('BTC-USD');
   await new Promise(r=>setTimeout(r,900));
-  const exit=await binanceTicker();
+  const exit=await coinbaseTicker('BTC-USD');
   const win=direction==='CALL'?exit>entry:exit<entry;
   const pnl=win?amt*.8:-amt,result=win?'WIN':'LOSS',created_at=new Date().toISOString();
-  if(usePg){const nr=await pool.query('INSERT INTO trades(account_id,direction,amount,entry_price,exit_price,result,pnl,expiry) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',[accountId,direction,amt,entry,exit,result,pnl,expiry]);await pool.query('UPDATE accounts SET balance=balance+$1,equity=equity+$1,total_pnl=total_pnl+$1,daily_pnl=daily_pnl+$1 WHERE id=$2',[pnl,accountId]);return res.json({trade:nr.rows[0],market:{source:'Binance spot market',entry,exit}})}
-  const d=dbRead();const t={id:d.next.trade++,account_id:a.id,direction,amount:amt,entry_price:entry,exit_price:exit,result,pnl,expiry,created_at,market_source:'Binance spot market'};d.trades.push(t);const ac=d.accounts.find(x=>x.id===a.id);ac.balance=Number(ac.balance)+pnl;ac.equity=Number(ac.equity)+pnl;ac.total_pnl=Number(ac.total_pnl)+pnl;ac.daily_pnl=Number(ac.daily_pnl)+pnl;dbWrite(d);res.json({trade:t,market:{source:'Binance spot market',entry,exit}})
+  if(usePg){const nr=await pool.query('INSERT INTO trades(account_id,direction,amount,entry_price,exit_price,result,pnl,expiry) VALUES($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *',[accountId,direction,amt,entry,exit,result,pnl,expiry]);await pool.query('UPDATE accounts SET balance=balance+$1,equity=equity+$1,total_pnl=total_pnl+$1,daily_pnl=daily_pnl+$1 WHERE id=$2',[pnl,accountId]);return res.json({trade:nr.rows[0],market:{source:'Coinbase',entry,exit}})}
+  const d=dbRead();const t={id:d.next.trade++,account_id:a.id,direction,amount:amt,entry_price:entry,exit_price:exit,result,pnl,expiry,created_at,market_source:'Coinbase'};d.trades.push(t);const ac=d.accounts.find(x=>x.id===a.id);ac.balance=Number(ac.balance)+pnl;ac.equity=Number(ac.equity)+pnl;ac.total_pnl=Number(ac.total_pnl)+pnl;ac.daily_pnl=Number(ac.daily_pnl)+pnl;dbWrite(d);res.json({trade:t,market:{source:'Coinbase',entry,exit}})
 }catch(e){console.error(e);res.status(503).json({error:'Live market unavailable; trade not executed'})}});
 
 app.get('/api/admin/orders',admin,async(req,res)=>{if(usePg){const r=await pool.query(`SELECT o.*,u.name,u.email,a.account_no,a.status AS account_status FROM orders o JOIN users u ON u.id=o.user_id LEFT JOIN accounts a ON a.user_id=o.user_id AND a.id=(SELECT MAX(id) FROM accounts aa WHERE aa.user_id=o.user_id) ORDER BY o.id DESC`);return res.json({orders:r.rows})}const d=dbRead();res.json({orders:d.orders.sort((a,b)=>b.id-a.id).map(o=>{const u=d.users.find(x=>x.id===o.user_id)||{};const a=d.accounts.filter(x=>x.user_id===o.user_id).sort((x,y)=>y.id-x.id)[0];return {...o,name:u.name||'',email:u.email||'',account_no:a?.account_no||'',account_status:a?.status||''}})})});
