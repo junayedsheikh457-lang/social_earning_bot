@@ -1,21 +1,108 @@
-name: Patch Real + OTC market feeds
+name: Fix FundedEdge market feeds
 on: push
 permissions:
   contents: write
 jobs:
   patch:
+    if: github.event.head_commit.message != 'Fix FundedEdge market feeds [auto]'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-      - name: Patch market feeds
-        run: python3 .github/scripts/patch_market_feed.py
+      - name: Patch active backend and dashboard
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          # Render runs server2.js (see package.json), so market routes must live there.
+          p = Path('server2.js')
+          s = p.read_text()
+
+          start = s.find('async function binanceTicker(){')
+          health = s.find("app.get('/api/health'", start)
+          if start != -1 and health != -1:
+              market_block = r'''async function coinbaseTicker(product){
+            const r=await fetch('https://api.exchange.coinbase.com/products/'+product+'/ticker',{headers:{accept:'application/json'}});
+            if(!r.ok)throw new Error('Coinbase market unavailable');
+            const j=await r.json();
+            const price=Number(j.price);
+            if(!Number.isFinite(price))throw new Error('Invalid Coinbase price');
+            return price;
+          }
+
+          const OANDA_INSTRUMENTS={XAUUSD:'XAU_USD',EURUSD:'EUR_USD',JPYUSD:'JPY_USD',CHFUSD:'CHF_USD',GBPUSD:'GBP_USD',AUDUSD:'AUD_USD'};
+          const OTC_BASE={BTCUSD:78000,ETHUSD:3200,XAUUSD:2350,EURUSD:1.085,JPYUSD:0.0067,CHFUSD:1.12,GBPUSD:1.27,AUDUSD:0.66};
+          function otcPrice(key,ms=Date.now()){
+            const base=OTC_BASE[key];
+            if(!base)throw new Error('Unknown OTC market');
+            const t=ms/1000;
+            const wave=Math.sin(t/19)+0.55*Math.sin(t/7.3)+0.25*Math.sin(t/3.1);
+            const pct=key==='BTCUSD'||key==='ETHUSD'?0.00035:0.00018;
+            return base*(1+pct*wave);
+          }
+          async function oandaTicker(key){
+            const token=process.env.OANDA_TOKEN;
+            const account=process.env.OANDA_ACCOUNT_ID;
+            const instrument=OANDA_INSTRUMENTS[key];
+            if(!token||!account||!instrument)throw new Error('OANDA not configured');
+            const host=process.env.OANDA_ENV==='live'?'https://api-fxtrade.oanda.com':'https://api-fxpractice.oanda.com';
+            const r=await fetch(host+'/v3/accounts/'+encodeURIComponent(account)+'/pricing?instruments='+encodeURIComponent(instrument),{headers:{Authorization:'Bearer '+token,accept:'application/json'}});
+            if(!r.ok)throw new Error('OANDA market unavailable');
+            const j=await r.json();
+            const q=j.prices&&j.prices[0];
+            const bid=Number(q&&q.bids&&q.bids[0]&&q.bids[0].price),ask=Number(q&&q.asks&&q.asks[0]&&q.asks[0].price);
+            const price=(bid+ask)/2;
+            if(!Number.isFinite(price))throw new Error('Invalid OANDA price');
+            return price;
+          }
+          function marketCandles(key,current,sec,count=100){
+            const now=Math.floor(Date.now()/1000/sec)*sec,arr=[];
+            for(let i=count-1;i>=0;i--){
+              const t=(now-i*sec)*1000;
+              const c=otcPrice(key,t),o=otcPrice(key,t-sec*1000),h=Math.max(o,c)*(1+0.00005),l=Math.min(o,c)*(1-0.00005);
+              arr.push({time:Math.floor(t/1000),open:o,high:h,low:l,close:c});
+            }
+            if(arr.length)arr[arr.length-1]={...arr[arr.length-1],close:current,high:Math.max(arr[arr.length-1].high,current),low:Math.min(arr[arr.length-1].low,current)};
+            return arr;
+          }
+          async function marketTicker(symbol){
+            const otc=/^(.+)-OTC$/.exec(symbol);
+            if(otc)return {price:otcPrice(otc[1]),source:'FundedEdge simulated OTC'};
+            if(symbol==='BTC-USD')return {price:await coinbaseTicker('BTC-USD'),source:'Coinbase'};
+            if(symbol==='ETH-USD')return {price:await coinbaseTicker('ETH-USD'),source:'Coinbase'};
+            const key=symbol.replace('=X','');
+            return {price:await oandaTicker(key),source:'OANDA'};
+          }
+
+          '''
+              s = s[:start] + market_block + s[health:]
+
+          # Replace the old Binance-only health/market endpoint.
+          s = re.sub(r"app\.get\('/api/health'.*?\napp\.post\('/api/auth/register'", "app.get('/api/health',(req,res)=>res.json({ok:true,service:'FundedEdge API',storage:usePg?'postgres':'fallback-file',market:'Coinbase BTC/ETH + OANDA FX/Gold + simulated OTC',time:new Date().toISOString()}));\napp.get('/api/market/:symbol',async(req,res)=>{try{const symbol=decodeURIComponent(req.params.symbol);const m=await marketTicker(symbol);res.set('Cache-Control','no-store');res.json({symbol,displaySymbol:symbol.replace('=X','').replace('-OTC',' OTC'),price:m.price,timestamp:Date.now(),source:m.source});}catch(e){res.status(503).json({error:'Market temporarily unavailable'});}});\n\napp.post('/api/auth/register'", s, count=1, flags=re.S)
+
+          # Existing authenticated trade endpoint must not use Binance Spot.
+          s = s.replace('const entry=await binanceTicker();', "const entry=await coinbaseTicker('BTC-USD');")
+          s = s.replace('const exit=await binanceTicker();', "const exit=await coinbaseTicker('BTC-USD');")
+          s = s.replace("source:'Binance spot market'", "source:'Coinbase'")
+          s = s.replace("market_source:'Binance spot market'", "market_source:'Coinbase'")
+
+          p.write_text(s)
+
+          # The chart library changed marker APIs. A hard call can stop ALL dashboard JS,
+          # which is why the tabs/quote/chart were blank. Make marker setup optional.
+          d=Path('dashboard.html')
+          h=d.read_text()
+          h=h.replace('markers=LightweightCharts.createSeriesMarkers(series,[]);', "try{markers=LightweightCharts.createSeriesMarkers?LightweightCharts.createSeriesMarkers(series,[]):null}catch(_){markers=null}")
+          h=h.replace('markers.setMarkers(markers);', "if(markers&&markers.setMarkers)markers.setMarkers(markers);")
+          d.write_text(h)
+          PY
       - name: Commit patch
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add server.js dashboard.html
-          git diff --cached --quiet || git commit -m 'Add real market proxy and simulated OTC markets'
+          git add server2.js dashboard.html .github/workflows/patch-real-otc.yml
+          git diff --cached --quiet || git commit -m 'Fix FundedEdge market feeds [auto]'
           git push
