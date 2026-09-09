@@ -1,0 +1,30 @@
+from pathlib import Path
+
+server = Path('server.js').read_text()
+marker = "app.get('/api/health',(req,res)=>res.json({ok:true,service:'FundedEdge API',storage:usePg?'postgres':'fallback-file',time:new Date().toISOString()}));"
+route = """
+const OTC_BASE={BTCUSD:67482.10,ETHUSD:3800,XAUUSD:2500,EURUSD:1.17,JPYUSD:0.0068,CHFUSD:1.25,GBPUSD:1.35,AUDUSD:0.66};
+const OTC_STATE={};
+function otcPrice(symbol){const base=OTC_BASE[symbol]||100;let st=OTC_STATE[symbol];if(!st)st=OTC_STATE[symbol]={p:base,t:Date.now()};const now=Date.now(),dt=Math.min(5,(now-st.t)/1000);st.t=now;const vol=base*(symbol==='BTCUSD'?0.00035:symbol==='ETHUSD'?0.00055:symbol==='XAUUSD'?0.00018:0.00012);st.p=Math.max(base*0.0001,st.p+(Math.random()-0.5)*vol*Math.sqrt(Math.max(dt,0.2)));return st.p}
+const REAL_SYMBOLS=new Set(['XAUUSD=X','EURUSD=X','JPYUSD=X','CHFUSD=X','GBPUSD=X','AUDUSD=X']);
+app.get('/api/market/:symbol',async(req,res)=>{try{const symbol=decodeURIComponent(req.params.symbol);if(symbol.endsWith('-OTC')){const key=symbol.slice(0,-4);if(!(key in OTC_BASE))return res.status(400).json({error:'Unsupported OTC market'});const p=otcPrice(key);return res.set('Cache-Control','no-store').json({type:'OTC',symbol,key,price:p,time:Date.now()})}if(!REAL_SYMBOLS.has(symbol))return res.status(400).json({error:'Unsupported real market'});const interval=String(req.query.interval||'1m'),range=String(req.query.range||'1d');const u='https://query1.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(symbol)+'?interval='+encodeURIComponent(interval)+'&range='+encodeURIComponent(range)+'&includePrePost=false';const r=await fetch(u,{headers:{'User-Agent':'Mozilla/5.0 FundedEdge/1.0'}});if(!r.ok)return res.status(r.status).json({error:'Market provider error'});res.set('Cache-Control','no-store');res.json(await r.json())}catch(e){res.status(502).json({error:'Market feed unavailable'})}});
+"""
+if "app.get('/api/market/:symbol'" not in server:
+    if marker not in server: raise SystemExit('server marker not found')
+    server=server.replace(marker,marker+route,1)
+    Path('server.js').write_text(server)
+
+dashboard=Path('dashboard.html').read_text()
+needle="AUDUSD:{name:'AUD/USD',icon:'A$',symbol:'AUDUSD=X',digits:5}}"
+addition="AUDUSD:{name:'AUD/USD',icon:'A$',symbol:'AUDUSD=X',digits:5},BTCOTC:{name:'BTC/USD OTC',icon:'₿',otc:true,symbol:'BTCUSD-OTC',digits:2},ETHOTC:{name:'ETH/USD OTC',icon:'Ξ',otc:true,symbol:'ETHUSD-OTC',digits:2},XAUOTC:{name:'XAU/USD OTC',icon:'Au',otc:true,symbol:'XAUUSD-OTC',digits:2},EUROTC:{name:'EUR/USD OTC',icon:'€',otc:true,symbol:'EURUSD-OTC',digits:5},JPYOTC:{name:'JPY/USD OTC',icon:'¥',otc:true,symbol:'JPYUSD-OTC',digits:6},CHFOTC:{name:'CHF/USD OTC',icon:'₣',otc:true,symbol:'CHFUSD-OTC',digits:5},GBPOTC:{name:'GBP/USD OTC',icon:'£',otc:true,symbol:'GBPUSD-OTC',digits:5},AUDOTC:{name:'AUD/USD OTC',icon:'A$',otc:true,symbol:'AUDUSD-OTC',digits:5}}"
+if needle in dashboard: dashboard=dashboard.replace(needle,addition,1)
+old="let r=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${a.symbol}?interval=1m&range=1d`),j=await r.json(),q=j.chart.result[0],t=q.timestamp||[],v=j.chart.result[0].indicators.quote[0];data=t.map((x,i)=>({time:x,open:v.open[i],high:v.high[i],low:v.low[i],close:v.close[i]})).filter(x=>x.open!=null).slice(-150)"
+# Current dashboard has v=q.indicators.quote[0]; handle that exact form.
+old2="let r=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${a.symbol}?interval=1m&range=1d`),j=await r.json(),q=j.chart.result[0],t=q.timestamp||[],v=q.indicators.quote[0];data=t.map((x,i)=>({time:x,open:v.open[i],high:v.high[i],low:v.low[i],close:v.close[i]})).filter(x=>x.open!=null).slice(-150)"
+new="let r=await fetch(API+'/api/market/'+encodeURIComponent(a.symbol)+'?interval=1m&range=1d'),j=await r.json();if(a.otc){data=[{time:Math.floor(Date.now()/1000)-60,open:j.price,high:j.price,low:j.price,close:j.price}]}else{let q=j.chart.result[0],t=q.timestamp||[],v=q.indicators.quote[0];data=t.map((x,i)=>({time:x,open:v.open[i],high:v.high[i],low:v.low[i],close:v.close[i]})).filter(x=>x.open!=null).slice(-150)}"
+if old2 in dashboard: dashboard=dashboard.replace(old2,new,1)
+oldpoll="poll=setInterval(async()=>{try{let r=await fetch(`https://query1.finance.yahoo.com/v8/finance/chart/${a.symbol}?interval=1m&range=1d`),j=await r.json(),p=j.chart.result[0].meta.regularMarketPrice;setPrice(p)}catch(_){}} ,5000)"
+newpoll="poll=setInterval(async()=>{try{let r=await fetch(API+'/api/market/'+encodeURIComponent(a.symbol)+'?interval=1m&range=1d'),j=await r.json(),p=a.otc?j.price:j.chart.result[0].meta.regularMarketPrice;setPrice(p)}catch(_){}} ,2000)"
+if oldpoll in dashboard: dashboard=dashboard.replace(oldpoll,newpoll,1)
+dashboard=dashboard.replace("if(a.crypto){ws=new WebSocket", "if(a.crypto&&!a.otc){ws=new WebSocket",1)
+Path('dashboard.html').write_text(dashboard)
