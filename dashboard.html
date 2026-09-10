@@ -119,4 +119,34 @@
   rescue();
   setInterval(rescue,2000);
 })();
+</script><script>
+(function(){
+  try{
+    if(typeof renderTabs==='function')renderTabs();
+  }catch(_){}
+  async function rescue(){
+    try{
+      if(typeof price==='undefined')return;
+      if(!price){
+        const r=await fetch('https://api.exchange.coinbase.com/products/BTC-USD/ticker',{cache:'no-store'});
+        const j=await r.json();
+        if(j&&j.price&&typeof setPrice==='function')setPrice(Number(j.price));
+      }
+      if(typeof chart==='undefined' || !chart){
+        const el=document.getElementById('chart');
+        if(el&&window.LightweightCharts){
+          chart=LightweightCharts.createChart(el,{layout:{background:{type:'solid',color:'#04121e'},textColor:'#8798aa'},grid:{vertLines:{color:'#10263a'},horzLines:{color:'#10263a'}},rightPriceScale:{borderColor:'#203a52'},timeScale:{borderColor:'#203a52',timeVisible:true}});
+          series=chart.addSeries(LightweightCharts.CandlestickSeries,{upColor:'#18e879',downColor:'#f33f4e',borderUpColor:'#18e879',borderDownColor:'#f33f4e',wickUpColor:'#18e879',wickDownColor:'#18e879',priceFormat:{type:'price',precision:2,minMove:.01}});
+          const r=await fetch('https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60',{cache:'no-store'});
+          const d=await r.json();
+          const data=(Array.isArray(d)?d:[]).reverse().map(x=>({time:x[0],low:+x[1],high:+x[2],open:+x[3],close:+x[4]})).filter(x=>Number.isFinite(x.close));
+          if(data.length){series.setData(data);lastBarTime=data[data.length-1].time;series._feLiveBar=data[data.length-1];setPrice(data[data.length-1].close);chart.timeScale().fitContent()}
+          feeds();
+        }
+      }
+    }catch(_){}
+  }
+  rescue();
+  setInterval(rescue,2000);
+})();
 </script></body></html>
