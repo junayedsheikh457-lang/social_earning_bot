@@ -1,0 +1,29 @@
+name: Fix dashboard runtime
+on: push
+permissions:
+  contents: write
+jobs:
+  patch:
+    if: github.event.head_commit.message != 'Fix dashboard runtime [auto]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add runtime-safe dashboard fallback
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('dashboard.html')
+          h=p.read_text()
+          h=h.replace("markers.setMarkers([{time:t,position:dir==='CALL'?'belowBar':'aboveBar',color:dir==='CALL'?'#18e879':'#ff4755',shape:dir==='CALL'?'arrowUp':'arrowDown',text:dir==='CALL'?'CALL':'PUT'}]);", "try{const mm=[{time:t,position:dir==='CALL'?'belowBar':'aboveBar',color:dir==='CALL'?'#18e879':'#ff4755',shape:dir==='CALL'?'arrowUp':'arrowDown',text:dir==='CALL'?'CALL':'PUT'}];if(markers&&markers.setMarkers)markers.setMarkers(mm);else if(series&&series.setMarkers)series.setMarkers(mm)}catch(_){}")
+          fallback='''<script>\n(function(){\n  try{\n    if(typeof renderTabs==='function')renderTabs();\n  }catch(_){}\n  async function rescue(){\n    try{\n      if(typeof price==='undefined')return;\n      if(!price){\n        const r=await fetch('https://api.exchange.coinbase.com/products/BTC-USD/ticker',{cache:'no-store'});\n        const j=await r.json();\n        if(j&&j.price&&typeof setPrice==='function')setPrice(Number(j.price));\n      }\n      if(typeof chart==='undefined' || !chart){\n        const el=document.getElementById('chart');\n        if(el&&window.LightweightCharts){\n          chart=LightweightCharts.createChart(el,{layout:{background:{type:'solid',color:'#04121e'},textColor:'#8798aa'},grid:{vertLines:{color:'#10263a'},horzLines:{color:'#10263a'}},rightPriceScale:{borderColor:'#203a52'},timeScale:{borderColor:'#203a52',timeVisible:true}});\n          series=chart.addSeries(LightweightCharts.CandlestickSeries,{upColor:'#18e879',downColor:'#f33f4e',borderUpColor:'#18e879',borderDownColor:'#f33f4e',wickUpColor:'#18e879',wickDownColor:'#18e879',priceFormat:{type:'price',precision:2,minMove:.01}});\n          const r=await fetch('https://api.exchange.coinbase.com/products/BTC-USD/candles?granularity=60',{cache:'no-store'});\n          const d=await r.json();\n          const data=(Array.isArray(d)?d:[]).reverse().map(x=>({time:x[0],low:+x[1],high:+x[2],open:+x[3],close:+x[4]})).filter(x=>Number.isFinite(x.close));\n          if(data.length){series.setData(data);lastBarTime=data[data.length-1].time;series._feLiveBar=data[data.length-1];setPrice(data[data.length-1].close);chart.timeScale().fitContent()}\n          feeds();\n        }\n      }\n    }catch(_){}\n  }\n  rescue();\n  setInterval(rescue,2000);\n})();\n</script>'''
+          h=h.replace('</script></body></html>', '</script>'+fallback+'</body></html>')
+          p.write_text(h)
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dashboard.html .github/workflows/fix-dashboard-runtime.yml
+          git diff --cached --quiet || git commit -m 'Fix dashboard runtime [auto]'
+          git push
