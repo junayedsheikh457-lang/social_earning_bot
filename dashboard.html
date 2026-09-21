@@ -16,15 +16,17 @@ button,input{font:inherit}button{cursor:pointer}.app{height:100dvh;display:flex;
 @media(min-width:1001px){
  .top{height:70px;flex-basis:70px}.assets{height:50px;flex-basis:50px}.layout{padding:10px;gap:10px}.market{border:1px solid #293a55;border-radius:12px;overflow:hidden}.side{position:static;width:330px;flex:0 0 330px;align-self:flex-start;box-shadow:none;backdrop-filter:none}.chartbox{min-height:520px}.bottom{display:none}.status{height:34px;flex-basis:34px}.brand{font-size:22px}
 }
-<style>
 @media(max-width:1000px){
+  html,body{overflow:hidden}
   .top{height:62px;flex-basis:62px;padding:0 9px;gap:8px}
   .logo{width:42px;height:42px;border-radius:11px;font-size:21px}
   .brand{font-size:18px}
   .account{gap:6px}
   .demo{height:40px;min-width:92px;padding:0 8px;font-size:12px;gap:5px}
   .demo b{padding:4px 6px;font-size:9px}
-  .deposit{height:40px;padding:0 10px;font-size:12px}
+  .deposit{display:none}
+  .account{margin-left:auto}
+  .demo{min-width:118px}
   .assets{height:48px;flex-basis:48px;padding:5px 7px}
   .asset{height:34px;padding:0 9px;font-size:10px}
   .layout{padding-bottom:64px}
@@ -32,10 +34,19 @@ button,input{font:inherit}button{cursor:pointer}.app{height:100dvh;display:flex;
   .pair{font-size:16px}
   .quote{font-size:17px}
   .chartbox{min-height:300px}
-  .side{bottom:70px}
+  .side{left:18px;right:18px;bottom:72px;border-radius:18px;padding:12px}
+  .dur{gap:7px;margin-bottom:9px}
+  .dur button{height:42px;font-size:12px}
+  .moneyrow{grid-template-columns:minmax(0,1fr) 94px;gap:9px}
+  .money,.payout{height:50px}
+  .actions{gap:9px;margin-top:9px}
+  .actions button{height:58px;font-size:17px;border-radius:13px}
+  .open{height:44px;margin-top:9px}
+  .charttools{padding-left:10px;padding-right:10px}
+  .chartbox{min-height:280px}
   .bottom{display:grid;position:fixed;left:0;right:0;bottom:0;height:64px}
 }
-</style></style>
+</style>
 </head>
 <body>
 <div class="app">
@@ -55,7 +66,7 @@ button,input{font:inherit}button{cursor:pointer}.app{height:100dvh;display:flex;
   <div class="status"><i></i>Market Open <span style="margin-left:auto" id="clock">—</span></div>
 </section>
 <aside class="side">
-  <div class="dur" id="expiry"><button class="active" data-v="60">00:05</button><button data-v="600">00:10</button><button data-v="30">00:30</button><button data-v="60">01:00</button><button data-v="120">02:00</button></div>
+  <div class="dur" id="expiry"><button class="active" data-v="300">00:05</button><button data-v="600">00:10</button><button data-v="1800">00:30</button><button data-v="3600">01:00</button><button data-v="7200">02:00</button></div>
   <div class="moneyrow"><div><div class="label">Investment</div><div class="money"><span>$</span><input id="amount" type="number" min="1" step="1" value="10"></div></div><div><div class="label">PAYOUT</div><div class="payout">+88%</div></div></div>
   <div class="actions"><button class="up" onclick="trade('CALL')">▲ Up<small>Higher</small></button><button class="down" onclick="trade('PUT')">▼ Down<small>Lower</small></button></div>
   <button class="open" onclick="toggleTrades()"><span>Open Trades <b id="tradeCount">0</b></span><span id="arrow">⌄</span></button>
@@ -68,7 +79,7 @@ button,input{font:inherit}button{cursor:pointer}.app{height:100dvh;display:flex;
 <script>
 const API='https://fundededge-api.onrender.com',token=localStorage.getItem('fe_token');
 const assets={BTCOTC:{name:'BTC/USD',full:'BTC/USD OTC',icon:'₿',symbol:'BTCUSD-OTC',digits:2},ETHOTC:{name:'ETH/USD',full:'ETH/USD OTC',icon:'Ξ',symbol:'ETHUSD-OTC',digits:2},XAUOTC:{name:'XAU/USD',full:'XAU/USD OTC',icon:'Au',symbol:'XAUUSD-OTC',digits:2},EUROTC:{name:'EUR/USD',full:'EUR/USD OTC',icon:'€',symbol:'EURUSD-OTC',digits:5},GBPOTC:{name:'GBP/USD',full:'GBP/USD OTC',icon:'£',symbol:'GBPUSD-OTC',digits:5}};
-let selected='BTCOTC',price=0,chart,series,markers,tf='1m',expiry=60,openTrade=null,tradeTimer=null,accountBalance=0,lastBarTime=0,entryLine=null;
+let selected='BTCOTC',price=0,chart,series,markers,tf='1m',expiry=300,openTrade=null,tradeTimer=null,accountBalance=0,lastBarTime=0,entryLine=null;
 const $=id=>document.getElementById(id),fmt=v=>Number(v||0).toLocaleString('en-US',{minimumFractionDigits:assets[selected].digits,maximumFractionDigits:assets[selected].digits});
 function renderTabs(){let h='';for(const[k,a]of Object.entries(assets))h+=`<button class="asset ${k===selected?'active':''}" onclick="switchAsset('${k}')">${a.icon} ${a.name} <small>OTC</small></button>`;$('assetTabs').innerHTML=h}
 function setBalance(v){accountBalance=Number(v||0);$('balance').textContent='$'+accountBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}
@@ -98,7 +109,7 @@ async function loadAccount(){
   }
 }
 function placeMarker(dir){try{markers?.setMarkers([{time:Math.floor(Date.now()/1000),position:dir==='CALL'?'belowBar':'aboveBar',color:dir==='CALL'?'#1fd58a':'#f34f61',shape:dir==='CALL'?'arrowUp':'arrowDown',text:dir==='CALL'?'UP':'DOWN'}])}catch(e){}}
-function trade(dir){if(!token)return location.href='auth.html?return=dashboard.html';const amount=Number($('amount').value);if(!price)return alert('Market price is loading.');if(!amount||amount<=0)return alert('Enter a valid investment amount.');if(amount>accountBalance)return alert('Investment is higher than your account balance.');if(openTrade)return alert('Close the current trade first.');const now=Date.now();openTrade={dir,entry:price,amount,expires:now+expiry*1000};placeMarker(dir);$('tradeCount').textContent='1';$('tradeBox').classList.add('show');$('arrow').textContent='⌃';$('tradeMarket').textContent=assets[selected].name+' · '+dir;$('entry').textContent=fmt(price);$('current').textContent=fmt(price);$('tradeAmount').textContent='$'+amount.toFixed(2);$('profit').textContent='+$'+(amount*.88).toFixed(2);$('tradeState').textContent='● Open';$('statusText').textContent=dir==='CALL'?'↑ UP opened — finish above entry':'↓ DOWN opened — finish below entry';clearInterval(tradeTimer);tradeTimer=setInterval(updateTrade,250)}
+function trade(dir){const amount=Number($('amount').value);if(!price)return alert('Market price is loading.');if(!amount||amount<=0)return alert('Enter a valid investment amount.');if(amount>accountBalance)return alert('Investment is higher than your account balance.');if(openTrade)return alert('Close the current trade first.');const now=Date.now();openTrade={dir,entry:price,amount,expires:now+expiry*1000};placeMarker(dir);$('tradeCount').textContent='1';$('tradeBox').classList.add('show');$('arrow').textContent='⌃';$('tradeMarket').textContent=assets[selected].name+' · '+dir;$('entry').textContent=fmt(price);$('current').textContent=fmt(price);$('tradeAmount').textContent='$'+amount.toFixed(2);$('profit').textContent='+$'+(amount*.88).toFixed(2);$('tradeState').textContent='● Open';$('statusText').textContent=dir==='CALL'?'↑ UP opened — finish above entry':'↓ DOWN opened — finish below entry';clearInterval(tradeTimer);tradeTimer=setInterval(updateTrade,250)}
 function updateTrade(){if(!openTrade)return;const d=price-openTrade.entry,win=openTrade.dir==='CALL'?d>0:d<0;$('current').textContent=fmt(price);$('timer').textContent=(Math.max(0,Math.ceil((openTrade.expires-Date.now())/1000))).toString().padStart(2,'0');if(Date.now()>=openTrade.expires){const pnl=win?openTrade.amount*.88:-openTrade.amount;accountBalance+=pnl;setBalance(accountBalance);$('tradeState').textContent=win?'✓ WIN':'✕ LOSS';$('tradeState').className=win?'green':'red';$('statusText').textContent=win?'✓ Expired WIN — profit added':'✕ Expired LOSS — investment deducted';$('statusText').className='result '+(win?'green':'red');clearInterval(tradeTimer);openTrade=null;$('tradeCount').textContent='0';setTimeout(()=>{$('tradeBox').classList.remove('show');$('arrow').textContent='⌄'},1600)}}
 function toggleTrades(){const x=$('tradeBox');x.classList.toggle('show');$('arrow').textContent=x.classList.contains('show')?'⌃':'⌄'}
 async function switchAsset(k){if(openTrade)return alert('Finish the current trade first.');selected=k;renderTabs();$('pair').textContent=assets[k].name;series.setData([]);series._live=null;lastBarTime=0;await loadCandles()}
