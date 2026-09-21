@@ -74,6 +74,48 @@ async function oandaTicker(key){
   if(!Number.isFinite(price))throw new Error('Invalid OANDA price');
   return price;
 }
+async function bridgeMarket(symbol){
+  const base=String(process.env.EXNESS_BRIDGE_URL||'').replace(/\/$/,'');
+  if(!base)throw new Error('Exness bridge not configured');
+  const r=await fetch(base+'/api/market/'+encodeURIComponent(symbol),{headers:{accept:'application/json'},cache:'no-store'});
+  if(!r.ok)throw new Error('Exness bridge unavailable');
+  const j=await r.json();
+  const price=Number(j.price);
+  if(!Number.isFinite(price))throw new Error('Invalid bridge price');
+  return {price,source:'Exness MT5 bridge'};
+}
+async function marketCandles(symbol,limit=120){
+  const bridge=String(process.env.EXNESS_BRIDGE_URL||'').replace(/\/$/,'');
+  if(bridge){
+    try{
+      const r=await fetch(bridge+'/api/candles/'+encodeURIComponent(symbol)+'?interval=1m&limit='+Math.min(Number(limit)||120,300),{headers:{accept:'application/json'},cache:'no-store'});
+      if(r.ok){
+        const j=await r.json();
+        if(Array.isArray(j.candles)&&j.candles.length)return {candles:j.candles,source:'Exness MT5 bridge'};
+      }
+    }catch(e){}
+  }
+  if(symbol==='BTC-USD'||symbol==='ETH-USD'){
+    const end=Math.floor(Date.now()/1000),start=end-60*Math.min(Number(limit)||120,300);
+    const r=await fetch('https://api.exchange.coinbase.com/products/'+encodeURIComponent(symbol)+'/candles?granularity=60&start='+start+'&end='+end,{headers:{accept:'application/json'}});
+    if(!r.ok)throw new Error('Crypto candle feed unavailable');
+    const raw=await r.json();
+    const candles=raw.map(x=>({time:Number(x[0]),low:Number(x[1]),high:Number(x[2]),open:Number(x[3]),close:Number(x[4]),volume:Number(x[5]||0)})).sort((a,b)=>a.time-b.time);
+    return {candles,source:'Coinbase'};
+  }
+  const key=symbol.replace('=X','');
+  const token=process.env.OANDA_TOKEN,account=process.env.OANDA_ACCOUNT_ID,instrument=OANDA_INSTRUMENTS[key];
+  if(token&&account&&instrument){
+    const host=process.env.OANDA_ENV==='live'?'https://api-fxtrade.oanda.com':'https://api-fxpractice.oanda.com';
+    const r=await fetch(host+'/v3/instruments/'+encodeURIComponent(instrument)+'/candles?granularity=M1&count='+Math.min(Number(limit)||120,500)+'&price=M',{headers:{Authorization:'Bearer '+token,accept:'application/json'}});
+    if(!r.ok)throw new Error('OANDA candle feed unavailable');
+    const j=await r.json();
+    const candles=(j.candles||[]).filter(x=>x.complete!==false&&x.mid).map(x=>({time:Math.floor(new Date(x.time).getTime()/1000),open:Number(x.mid.o),high:Number(x.mid.h),low:Number(x.mid.l),close:Number(x.mid.c),volume:Number(x.volume||0)}));
+    return {candles,source:'OANDA'};
+  }
+  throw new Error('No live candle provider configured');
+}
+
 function marketCandles(key,current,sec,count=100){
   const now=Math.floor(Date.now()/1000/sec)*sec,arr=[];
   for(let i=count-1;i>=0;i--){
@@ -85,16 +127,18 @@ function marketCandles(key,current,sec,count=100){
   return arr;
 }
 async function marketTicker(symbol){
-  const otc=/^(.+)-OTC$/.exec(symbol);
-  if(otc)return {price:otcPrice(otc[1]),source:'FundedEdge simulated OTC'};
+  if(process.env.EXNESS_BRIDGE_URL){
+    try{return await bridgeMarket(symbol)}catch(e){}
+  }
   if(symbol==='BTC-USD')return {price:await coinbaseTicker('BTC-USD'),source:'Coinbase'};
   if(symbol==='ETH-USD')return {price:await coinbaseTicker('ETH-USD'),source:'Coinbase'};
   const key=symbol.replace('=X','');
   return {price:await oandaTicker(key),source:'OANDA'};
 }
 
-app.get('/api/health',(req,res)=>res.json({ok:true,service:'FundedEdge API',storage:usePg?'postgres':'fallback-file',market:'Coinbase BTC/ETH + OANDA FX/Gold + simulated OTC',time:new Date().toISOString()}));
+app.get('/api/health',(req,res)=>res.json({ok:true,service:'FundedEdge API',storage:usePg?'postgres':'fallback-file',market:process.env.EXNESS_BRIDGE_URL?'Exness MT5 bridge (primary) + Coinbase/OANDA fallback':'Coinbase BTC/ETH + OANDA FX/Gold',time:new Date().toISOString()}));
 app.get('/api/market/:symbol',async(req,res)=>{try{const symbol=decodeURIComponent(req.params.symbol);const m=await marketTicker(symbol);res.set('Cache-Control','no-store');res.json({symbol,displaySymbol:symbol.replace('=X','').replace('-OTC',' OTC'),price:m.price,timestamp:Date.now(),source:m.source});}catch(e){res.status(503).json({error:'Market temporarily unavailable'});}});
+app.get('/api/market/:symbol/candles',async(req,res)=>{try{const symbol=decodeURIComponent(req.params.symbol);const x=await marketCandles(symbol,req.query.limit||120);res.set('Cache-Control','no-store');res.json({symbol,candles:x.candles,source:x.source,timestamp:Date.now()});}catch(e){res.status(503).json({error:'Live candle data unavailable',detail:e.message})}});
 
 app.post('/api/auth/register',async(req,res)=>{try{const{name,email,password}=req.body;if(!name||!email||!password||password.length<8)return res.status(400).json({error:'Name, email and an 8+ character password are required'});const em=email.toLowerCase().trim();const hash=await bcrypt.hash(password,12);if(usePg){const r=await pool.query('INSERT INTO users(name,email,password_hash) VALUES($1,$2,$3) RETURNING id,name,email',[name,em,hash]);return res.json({token:token(r.rows[0]),user:r.rows[0]})}const d=dbRead();if(d.users.some(x=>x.email===em))return res.status(400).json({error:'Email already registered'});const u={id:d.next.user++,name,email:em,password_hash:hash,created_at:new Date().toISOString()};d.users.push(u);dbWrite(d);res.json({token:token(u),user:{id:u.id,name:u.name,email:u.email}})}catch(e){res.status(400).json({error:'Registration failed'})}});
 app.post('/api/auth/login',async(req,res)=>{try{const em=String(req.body.email||'').toLowerCase().trim();const pw=req.body.password||'';let u;if(usePg){const r=await pool.query('SELECT * FROM users WHERE email=$1',[em]);u=r.rows[0]}else u=dbRead().users.find(x=>x.email===em);if(!u||!(await bcrypt.compare(pw,u.password_hash)))return res.status(401).json({error:'Invalid email or password'});res.json({token:token(u),user:{id:u.id,name:u.name,email:u.email}})}catch(e){res.status(500).json({error:'Login failed'})}});
