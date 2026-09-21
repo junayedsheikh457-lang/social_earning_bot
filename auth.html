@@ -1,1 +1,42 @@
-<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Account — FundedEdge</title><link rel="stylesheet" href="styles.css"></head><body><div class="wrap"><nav class="nav"><div class="logo"><span class="logoMark">F</span>FundedEdge</div><div class="navlinks"><a href="index.html">Home</a></div></nav><div class="login card"><div class="eyebrow">Secure account</div><h1>Welcome back</h1><p class="muted">Sign in to access your dashboard.</p><div class="form"><input type="email" placeholder="Email address"><input type="password" placeholder="Password"><button class="btn primary" onclick="location.href='dashboard.html'">Login →</button></div><div class="notice" style="margin-top:12px">Authentication API can be connected to this new interface.</div></div></div></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login — FundedEdge</title>
+<link rel="stylesheet" href="styles.css">
+<style>
+.authPage{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.authCard{width:min(430px,100%);padding:28px}
+.authLogo{display:flex;align-items:center;gap:10px;font-weight:1000;font-size:20px;margin-bottom:28px}
+.authLogo .logoMark{width:46px;height:46px}
+.authHint{margin-top:12px}
+</style>
+</head>
+<body>
+<div class="authPage">
+  <div class="authCard card">
+    <div class="authLogo"><span class="logoMark">F</span>FundedEdge</div>
+    <div class="eyebrow">Secure account</div>
+    <h1>Welcome back</h1>
+    <p class="muted">Sign in to access your trading dashboard.</p>
+    <div class="form">
+      <input id="email" type="email" placeholder="Email address" autocomplete="email">
+      <input id="password" type="password" placeholder="Password" autocomplete="current-password">
+      <button class="btn primary" onclick="login()">Login →</button>
+    </div>
+    <div class="notice authHint">Demo mode is enabled for the new interface. You can enter the dashboard without a real account.</div>
+    <div style="margin-top:12px;text-align:center"><a href="index.html" class="muted" style="text-decoration:none">← Back to Home</a></div>
+  </div>
+</div>
+<script>
+function login(){
+  localStorage.setItem('fe_demo','1');
+  const p=new URLSearchParams(location.search);
+  const target=p.get('return')||'dashboard.html';
+  const allowed=['dashboard.html','index.html','challenge.html','history.html'];
+  location.href=allowed.includes(target)?target:'dashboard.html';
+}
+</script>
+</body>
+</html>
