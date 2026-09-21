@@ -57,7 +57,27 @@ function setPrice(p){p=Number(p);if(!Number.isFinite(p)||p<=0)return;price=p;$('
 async function loadCandles(){if(!series)return;const a=assets[selected],sec=tf==='1m'?60:tf==='5m'?300:tf==='15m'?900:3600;try{const r=await fetch(API+'/api/market/'+encodeURIComponent(a.symbol)+'?interval=1m&range=1d'),j=await r.json();const p=Number(j.price);let data=[];if(Number.isFinite(p)){const now=Math.floor(Date.now()/1000);for(let i=90;i>=1;i--){const x=p*(1+(Math.random()-.5)*.008);data.push({time:now-i*60,open:x,high:x*(1+Math.random()*.002),low:x*(1-Math.random()*.002),close:p*(1+(Math.random()-.5)*.004)})}data.push({time:now,open:p,high:p,low:p,close:p})}if(data.length){series.setData(data);series._live=data[data.length-1];lastBarTime=data[data.length-1].time;setPrice(p);chart.timeScale().fitContent()}}catch(e){}}
 function feed(){setInterval(async()=>{try{const a=assets[selected],r=await fetch(API+'/api/market/'+encodeURIComponent(a.symbol)+'?interval=1m&range=1d',{cache:'no-store'}),j=await r.json();if(j.price)setPrice(j.price)}catch(e){}},1200)}
 function init(){chart=LightweightCharts.createChart($('chart'),{layout:{background:{type:'solid',color:'#111a2b'},textColor:'#8294aa'},grid:{vertLines:{color:'#1e2b42'},horzLines:{color:'#1e2b42'}},rightPriceScale:{borderColor:'#2b3b55'},timeScale:{borderColor:'#2b3b55',timeVisible:true,secondsVisible:false},crosshair:{mode:1}});series=chart.addSeries(LightweightCharts.CandlestickSeries,{upColor:'#1fd58a',downColor:'#f34f61',borderUpColor:'#1fd58a',borderDownColor:'#f34f61',wickUpColor:'#1fd58a',wickDownColor:'#f34f61',priceFormat:{type:'price',precision:2,minMove:.01}});try{markers=LightweightCharts.createSeriesMarkers(series,[])}catch(e){}renderTabs();loadCandles();feed();loadAccount()}
-async function loadAccount(){if(!token)return $('lock').style.display='grid';try{const r=await fetch(API+'/api/me',{headers:{Authorization:'Bearer '+token}}),m=await r.json(),a=m.accounts?.[0];if(!a)throw Error();setBalance(a.balance)}catch(e){$('lock').style.display='grid'}}
+async function loadAccount(){
+  // New interface: allow demo access even when the authentication API is not connected.
+  if(!token){
+    setBalance(1000);
+    $('lock').style.display='none';
+    localStorage.setItem('fe_demo','1');
+    return;
+  }
+  try{
+    const r=await fetch(API+'/api/me',{headers:{Authorization:'Bearer '+token}});
+    const m=await r.json();
+    const a=m.accounts?.[0];
+    if(!a)throw Error('No account');
+    setBalance(a.balance);
+    $('lock').style.display='none';
+  }catch(e){
+    setBalance(1000);
+    $('lock').style.display='none';
+    localStorage.setItem('fe_demo','1');
+  }
+}
 function placeMarker(dir){try{markers?.setMarkers([{time:Math.floor(Date.now()/1000),position:dir==='CALL'?'belowBar':'aboveBar',color:dir==='CALL'?'#1fd58a':'#f34f61',shape:dir==='CALL'?'arrowUp':'arrowDown',text:dir==='CALL'?'UP':'DOWN'}])}catch(e){}}
 function trade(dir){if(!token)return location.href='auth.html?return=dashboard.html';const amount=Number($('amount').value);if(!price)return alert('Market price is loading.');if(!amount||amount<=0)return alert('Enter a valid investment amount.');if(amount>accountBalance)return alert('Investment is higher than your account balance.');if(openTrade)return alert('Close the current trade first.');const now=Date.now();openTrade={dir,entry:price,amount,expires:now+expiry*1000};placeMarker(dir);$('tradeCount').textContent='1';$('tradeBox').classList.add('show');$('arrow').textContent='⌃';$('tradeMarket').textContent=assets[selected].name+' · '+dir;$('entry').textContent=fmt(price);$('current').textContent=fmt(price);$('tradeAmount').textContent='$'+amount.toFixed(2);$('profit').textContent='+$'+(amount*.88).toFixed(2);$('tradeState').textContent='● Open';$('statusText').textContent=dir==='CALL'?'↑ UP opened — finish above entry':'↓ DOWN opened — finish below entry';clearInterval(tradeTimer);tradeTimer=setInterval(updateTrade,250)}
 function updateTrade(){if(!openTrade)return;const d=price-openTrade.entry,win=openTrade.dir==='CALL'?d>0:d<0;$('current').textContent=fmt(price);$('timer').textContent=(Math.max(0,Math.ceil((openTrade.expires-Date.now())/1000))).toString().padStart(2,'0');if(Date.now()>=openTrade.expires){const pnl=win?openTrade.amount*.88:-openTrade.amount;accountBalance+=pnl;setBalance(accountBalance);$('tradeState').textContent=win?'✓ WIN':'✕ LOSS';$('tradeState').className=win?'green':'red';$('statusText').textContent=win?'✓ Expired WIN — profit added':'✕ Expired LOSS — investment deducted';$('statusText').className='result '+(win?'green':'red');clearInterval(tradeTimer);openTrade=null;$('tradeCount').textContent='0';setTimeout(()=>{$('tradeBox').classList.remove('show');$('arrow').textContent='⌄'},1600)}}
