@@ -1,0 +1,91 @@
+name: Mobile Trade UI
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  patch:
+    if: ${{ !contains(github.event.head_commit.message, '[mobile-ui-auto]') }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply mobile trade layout
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('dashboard.html')
+          s = p.read_text(encoding='utf-8')
+          marker = 'data-fe-mobile-ui="1"'
+          if marker not in s:
+              style = r'''<style data-fe-mobile-ui="1">
+@media(max-width:699px){
+  html,body{background:#111a2c!important;color:#eef3ff!important;overflow:auto!important}
+  .app{height:auto!important;min-height:100dvh!important;background:#111a2c!important;padding-bottom:70px!important}
+  .top{height:72px!important;flex:0 0 72px!important;padding:8px 10px!important;gap:8px!important;background:#19243b!important;border-bottom:1px solid #344563!important}
+  .logo{font-size:0!important;display:flex!important;align-items:center!important;min-width:42px!important}
+  .logo:before{content:'BF';display:grid;place-items:center;width:40px;height:40px;border-radius:10px;background:linear-gradient(135deg,#5d75ff,#27e6a0);color:white;font-size:18px;font-weight:1000;letter-spacing:-2px}
+  .logo span{display:none!important}
+  .nav{display:none!important}
+  .funded{margin-left:auto!important;border:0!important;background:#202e49!important;border-radius:10px!important;padding:7px 12px!important;text-align:left!important;min-width:108px!important}
+  .funded small{font-size:8px!important;color:#c1cce0!important}
+  .funded b{font-size:18px!important;color:#fff!important}
+  .top:after{content:'+ Deposit';display:flex;align-items:center;justify-content:center;background:#1ee58a;color:#062b1d;font-size:12px;font-weight:950;border-radius:9px;padding:0 12px;height:40px;white-space:nowrap}
+  .assets{padding:8px 10px!important;background:#19243b!important;border-bottom:1px solid #344563!important;gap:6px!important}
+  .assetTab{background:#263653!important;border-color:#42577b!important;border-radius:8px!important;padding:7px 10px!important;font-size:11px!important}
+  .assetTab.active{background:#4654a8!important;border-color:#7184ff!important;box-shadow:none!important}
+  .layout{display:flex!important;flex-direction:column!important;gap:0!important;padding:0!important;background:#111a2c!important}
+  .market{display:flex!important;flex-direction:column!important;min-height:0!important;border:0!important;border-radius:0!important;background:#111a2c!important}
+  .head{height:58px!important;flex:0 0 58px!important;padding:0 16px!important;background:#19243b!important;border-bottom:1px solid #344563!important}
+  .pair{font-size:21px!important;letter-spacing:-.5px!important}
+  .live{font-size:10px!important;color:#91a4ff!important;background:#303e7b!important;border-radius:6px!important;padding:5px 8px!important;margin-left:6px!important}
+  .quote{font-size:19px!important;color:#fff!important}
+  .chartbar{height:43px!important;background:#19243b!important;padding:2px 8px!important;border-bottom:1px solid #344563!important;gap:2px!important}
+  .chartbar button{padding:7px 9px!important;color:#a9b8d1!important}
+  .chartbar button.active{border:0!important;background:#4859bc!important;color:#fff!important;border-radius:6px!important}
+  .chartbox{height:calc(100dvh - 520px)!important;min-height:400px!important;flex:0 0 auto!important;background:#111a2c!important}
+  .status{display:none!important}
+  .side{position:static!important;left:auto!important;right:auto!important;bottom:auto!important;margin:0!important;padding:10px 12px 14px!important;border:0!important;border-top:1px solid #344563!important;border-radius:0!important;background:#19243b!important;box-shadow:none!important;backdrop-filter:none!important}
+  .expiry{grid-template-columns:repeat(4,1fr)!important;gap:6px!important}
+  .expiry button{background:#202f4c!important;border:1px solid #3b5072!important;border-radius:20px!important;padding:10px 4px!important;font-size:12px!important;color:#b8c6df!important}
+  .expiry button.active{background:#5366dc!important;border-color:#7184ff!important;color:#fff!important}
+  .tradeControls{grid-template-columns:minmax(0,1fr) 90px!important;gap:8px!important;margin-top:10px!important}
+  .sectionTitle{font-size:11px!important;color:#9dafc8!important;margin-bottom:5px!important}
+  .investment input{height:48px!important;background:#101a2c!important;border:1px solid #405574!important;border-radius:12px!important;text-align:center!important;font-size:22px!important}
+  .payout{height:48px!important;background:#142e2a!important;border:1px solid #2c7e67!important;border-radius:12px!important;font-size:19px!important}
+  .actions{gap:10px!important;margin-top:10px!important}
+  .actions button{height:58px!important;border-radius:14px!important;font-size:18px!important;padding:8px!important}
+  .call{background:#1dbb78!important}.put{background:#d94363!important}
+  .openToggle{margin-top:10px!important;height:42px!important;background:#202f4c!important;border:1px solid #3b5072!important;border-radius:10px!important;padding:8px 12px!important}
+  .trade{background:#101a2c!important;border-color:#405574!important;border-radius:10px!important}
+  .bottom{display:none!important}
+  .fe-mobile-bottom{position:fixed;z-index:50;left:0;right:0;bottom:0;height:66px;display:grid;grid-template-columns:repeat(4,1fr);background:#19243b;border-top:1px solid #344563;padding-bottom:env(safe-area-inset-bottom)}
+  .fe-mobile-bottom a{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;color:#94a9c8;text-decoration:none;font-size:10px;font-weight:850}
+  .fe-mobile-bottom a.active{color:#7d8dff}
+  .fe-mobile-bottom b{font-size:23px;line-height:20px;font-weight:500}
+}
+@media(min-width:700px){.fe-mobile-bottom{display:none!important}}
+</style>'''
+              s = s.replace('</head>', style + '</head>', 1)
+              nav = r'''<nav class="fe-mobile-bottom" aria-label="Mobile navigation"><a class="active" href="dashboard.html"><b>↕</b><span>Trade</span></a><a href="challenge.html"><b>▥</b><span>Markets</span></a><a href="history.html"><b>▤</b><span>History</span></a><a href="account.html"><b>♙</b><span>Account</span></a></nav>'''
+              s = s.replace('</body>', nav + '</body>', 1)
+              script = r'''<script data-fe-mobile-ui="1">
+(function(){
+  var live=document.querySelector('.live'); if(live) live.textContent=' OTC ';
+  var call=document.querySelector('.call'); if(call) call.textContent='Up  ↑';
+  var put=document.querySelector('.put'); if(put) put.textContent='Down  ↓';
+  var amount=document.getElementById('amount'); if(amount) amount.setAttribute('aria-label','Investment amount');
+})();
+</script>'''
+              s = s.replace('</body>', script + '</body>', 1)
+              p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit patched dashboard
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add dashboard.html
+          git diff --cached --quiet || git commit -m 'Apply mobile trade UI [mobile-ui-auto]'
+          git push
