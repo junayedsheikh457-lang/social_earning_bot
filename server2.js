@@ -127,31 +127,6 @@ async function marketTicker(symbol){
 }
 
 app.get('/api/health',(req,res)=>res.json({ok:true,service:'FundedEdge API',storage:usePg?'postgres':'fallback-file',market:'Coinbase BTC/ETH + OANDA FX/Gold + simulated OTC',time:new Date().toISOString()}));
-app.get('/api/market/:symbol/candles',async(req,res)=>{
-  try{
-    const symbol=decodeURIComponent(req.params.symbol);
-    const interval=String(req.query.interval||'1m');
-    const baseLimit=Math.min(Math.max(Number(req.query.limit)||120,30),300);
-    const x=await marketCandles(symbol,baseLimit);
-    let candles=x.candles||[];
-    const step=interval==='5m'?300:interval==='15m'?900:interval==='1h'?3600:60;
-    if(step>60 && candles.length){
-      const grouped=[];
-      for(const b of candles){
-        const t=Math.floor(Number(b.time)/step)*step;
-        let g=grouped[grouped.length-1];
-        if(!g||g.time!==t){g={time:t,open:Number(b.open),high:Number(b.high),low:Number(b.low),close:Number(b.close),volume:Number(b.volume||0)};grouped.push(g)}
-        else{g.high=Math.max(g.high,Number(b.high));g.low=Math.min(g.low,Number(b.low));g.close=Number(b.close);g.volume+=Number(b.volume||0)}
-      }
-      candles=grouped.slice(-baseLimit);
-    }
-    res.set('Cache-Control','no-store');
-    res.json({symbol,candles,source:x.source,timestamp:Date.now()});
-  }catch(e){
-    console.error('candle feed',e.message);
-    res.status(503).json({error:'Live candle data unavailable',detail:e.message});
-  }
-});
 app.get('/api/market/:symbol',async(req,res)=>{try{const symbol=decodeURIComponent(req.params.symbol);const m=await marketTicker(symbol);res.set('Cache-Control','no-store');res.json({symbol,displaySymbol:symbol.replace('=X','').replace('-OTC',' OTC'),price:m.price,timestamp:Date.now(),source:m.source});}catch(e){res.status(503).json({error:'Market temporarily unavailable'});}});
 
 app.post('/api/auth/register',async(req,res)=>{try{const{name,email,password}=req.body;if(!name||!email||!password||password.length<8)return res.status(400).json({error:'Name, email and an 8+ character password are required'});const em=email.toLowerCase().trim();const hash=await bcrypt.hash(password,12);if(usePg){const r=await pool.query('INSERT INTO users(name,email,password_hash) VALUES($1,$2,$3) RETURNING id,name,email',[name,em,hash]);return res.json({token:token(r.rows[0]),user:r.rows[0]})}const d=dbRead();if(d.users.some(x=>x.email===em))return res.status(400).json({error:'Email already registered'});const u={id:d.next.user++,name,email:em,password_hash:hash,created_at:new Date().toISOString()};d.users.push(u);dbWrite(d);res.json({token:token(u),user:{id:u.id,name:u.name,email:u.email}})}catch(e){res.status(400).json({error:'Registration failed'})}});
