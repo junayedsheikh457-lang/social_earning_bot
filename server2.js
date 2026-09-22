@@ -88,7 +88,7 @@ async function marketCandles(symbol,limit=120){
   const bridge=String(process.env.EXNESS_BRIDGE_URL||'').replace(/\/$/,'');
   if(bridge){
     try{
-      const r=await fetch(bridge+'/api/candles/'+encodeURIComponent(symbol)+'?interval=1m&limit='+Math.min(Number(limit)||120,300),{headers:{accept:'application/json'},cache:'no-store'});
+      const r=await fetch(bridge+'/api/candles/'+encodeURIComponent(symbol)+'?interval=1m&limit='+Math.min((Number(limit)||120)*20,300),{headers:{accept:'application/json'},cache:'no-store'});
       if(r.ok){
         const j=await r.json();
         if(Array.isArray(j.candles)&&j.candles.length)return {candles:j.candles,source:'Exness MT5 bridge'};
