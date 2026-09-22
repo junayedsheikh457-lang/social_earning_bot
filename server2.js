@@ -84,7 +84,7 @@ async function bridgeMarket(symbol){
   if(!Number.isFinite(price))throw new Error('Invalid bridge price');
   return {price,source:'Exness MT5 bridge'};
 }
-async function marketCandles(symbol,limit=120){
+async function marketCandles(symbol,limit=120,reqInterval='1m'){
   const bridge=String(process.env.EXNESS_BRIDGE_URL||'').replace(/\/$/,'');
   if(bridge){
     try{
@@ -96,8 +96,11 @@ async function marketCandles(symbol,limit=120){
     }catch(e){}
   }
   if(symbol==='BTC-USD'||symbol==='ETH-USD'){
-    const end=Math.floor(Date.now()/1000),start=end-60*Math.min(Number(limit)||120,300);
-    const r=await fetch('https://api.exchange.coinbase.com/products/'+encodeURIComponent(symbol)+'/candles?granularity=60&start='+start+'&end='+end,{headers:{accept:'application/json'}});
+    const iv=String(reqInterval||'1m');
+    const gran=iv==='5m'?300:iv==='15m'?900:iv==='30m'?1800:iv==='1h'?3600:iv==='4h'?21600:iv==='1d'?86400:60;
+    const count=Math.min(Number(limit)||120,300);
+    const end=Math.floor(Date.now()/1000),start=end-gran*count;
+    const r=await fetch('https://api.exchange.coinbase.com/products/'+encodeURIComponent(symbol)+'/candles?granularity='+gran+'&start='+start+'&end='+end,{headers:{accept:'application/json'},cache:'no-store'});
     if(!r.ok)throw new Error('Crypto candle feed unavailable');
     const raw=await r.json();
     const candles=raw.map(x=>({time:Number(x[0]),low:Number(x[1]),high:Number(x[2]),open:Number(x[3]),close:Number(x[4]),volume:Number(x[5]||0)})).sort((a,b)=>a.time-b.time);
