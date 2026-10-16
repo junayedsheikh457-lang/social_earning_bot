@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>অর্ডার করুন</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header>
+    <div class="logo">মেয়েদের জামা</div>
+  </header>
+
+  <div class="order-box">
+    <h2>📦 অর্ডার ফর্ম</h2>
+    <p id="selected-product" style="text-align:center; color:#e91e63; font-weight:bold; margin-bottom:15px;"></p>
+
+    <form action="order.php" method="POST">
+      <input type="hidden" name="product" id="product">
+      <input type="hidden" name="price" id="price">
+
+      <label>আপনার নাম *</label>
+      <input type="text" name="name" required placeholder="পুরো নাম লিখুন">
+
+      <label>মোবাইল নাম্বার *</label>
+      <input type="tel" name="phone" required placeholder="01XXXXXXXXX">
+
+      <label>সম্পূর্ণ ঠিকানা *</label>
+      <textarea name="address" rows="3" required placeholder="বাড়ি নং, রোড, এলাকা, জেলা"></textarea>
+
+      <label>পরিমাণ</label>
+      <select name="quantity">
+        <option value="1">১ পিস</option>
+        <option value="2">২ পিস</option>
+      </select>
+
+      <label>নোট (ঐচ্ছিক)</label>
+      <textarea name="note" rows="2" placeholder="সাইজ বা অন্য কোনো কথা"></textarea>
+
+      <button type="submit">অর্ডার কনফার্ম করুন (COD)</button>
+    </form>
+
+    <a href="index.html" class="back">← ফিরে যান</a>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const product = params.get('product') || 'জামা';
+    const price = params.get('price') || '0';
+    document.getElementById('product').value = product;
+    document.getElementById('price').value = price;
+    document.getElementById('selected-product').innerText = product + ' - ৳' + price;
+  </script>
+
+</body>
+</html>
