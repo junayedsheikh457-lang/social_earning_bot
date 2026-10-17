@@ -1,6 +1,0 @@
-services:
-  - type: web
-    name: fundededge
-    runtime: static
-    buildCommand: ""
-    staticPublishPath: .
