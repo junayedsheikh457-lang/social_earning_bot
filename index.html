@@ -1,58 +1,29 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="bn">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>মেয়েদের জামা | COD</title>
-  <link rel="stylesheet" href="style.css">
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#e94f8a">
+<title>Fashion Mart | মেয়েদের ফ্যাশন</title>
+<link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-  <header>
-    <div class="logo">মেয়েদের জামা</div>
-    <div class="tag">Cash on Delivery</div>
-  </header>
-
-  <section class="hero">
-    <h1>সুন্দর জামা,<br>ঘরে বসে অর্ডার করুন</h1>
-    <p>১-২ পিস অর্ডার করুন • Cash on Delivery</p>
-  </section>
-
-  <section class="products">
-    <h2>আমাদের কালেকশন</h2>
-    <div class="grid">
-
-      <div class="card">
-        <div class="img pink">গোলাপি</div>
-        <h3>গোলাপি কুর্তি</h3>
-        <p class="price">৳ ৮৫০</p>
-        <p class="desc">সফট কাপড়, ফ্রি সাইজ</p>
-        <a href="order.html?product=গোলাপি কুর্তি&price=850" class="btn">অর্ডার করুন</a>
-      </div>
-
-      <div class="card">
-        <div class="img black">কালো</div>
-        <h3>কালো গাউন</h3>
-        <p class="price">৳ ১২০০</p>
-        <p class="desc">পার্টির জন্য পারফেক্ট</p>
-        <a href="order.html?product=কালো গাউন&price=1200" class="btn">অর্ডার করুন</a>
-      </div>
-
-      <div class="card">
-        <div class="img red">লাল</div>
-        <h3>লাল পাঞ্জাবি সেট</h3>
-        <p class="price">৳ ৯৫০</p>
-        <p class="desc">আরামদায়ক ও স্টাইলিশ</p>
-        <a href="order.html?product=লাল পাঞ্জাবি সেট&price=950" class="btn">অর্ডার করুন</a>
-      </div>
-
-    </div>
-  </section>
-
-  <footer>
-    <p>Cash on Delivery • সারা বাংলাদেশে ডেলিভারি</p>
-    <p>অর্ডার সংক্রান্ত যেকোনো প্রশ্ন থাকলে যোগাযোগ করুন</p>
-  </footer>
-
-</body>
-</html>
+<div class="announcement">নতুন কালেকশন এসেছে ✨ সারা বাংলাদেশে Cash on Delivery</div>
+<header class="site-header">
+  <a class="brand" href="index.html"><span class="brand-mark">F</span><span>Fashion<span class="brand-pink">Mart</span><small>STYLE THAT FEELS LIKE YOU</small></span></a>
+  <nav><a href="#home">হোম</a><a href="#categories">ক্যাটাগরি</a><a href="#products">কালেকশন</a><a href="track.html">অর্ডার ট্র্যাক</a></nav>
+  <button class="cart-button" id="cart-open" aria-label="কার্ট খুলুন">🛍️ <span>কার্ট</span> <b id="cart-count">0</b></button>
+</header>
+<main>
+<section class="hero" id="home">
+ <div class="hero-copy"><span class="eyebrow">NEW SEASON · NEW YOU</span><h1>তোমার স্টাইল,<br><em>তোমার গল্প।</em></h1><p>প্রতিদিনের সৌন্দর্য থেকে বিশেষ দিনের সাজ—তোমার পছন্দের পোশাক এখন এক জায়গায়।</p><a class="primary-btn" href="#products">কালেকশন দেখুন <span>↗</span></a><div class="hero-trust"><span>✓ কোয়ালিটি চেকড</span><span>✓ ক্যাশ অন ডেলিভারি</span></div></div>
+ <div class="hero-art"><div class="art-label">THE NEW<br><strong>FEMININE</strong><br>COLLECTION</div><div class="art-orbit"></div><div class="fashion-figure" aria-label="ফ্যাশন কালেকশনের ইলাস্ট্রেশন"><div class="figure-head"></div><div class="figure-hair"></div><div class="figure-body"></div><div class="figure-dress"></div><div class="figure-arm"></div></div><span class="floating-note">Made for<br><b>your moments ♡</b></span></div>
+</section>
+<section class="benefits"><div><span>♡</span><p><b>পছন্দের ডিজাইন</b><small>নতুন ট্রেন্ডি কালেকশন</small></p></div><div><span>৳</span><p><b>সাশ্রয়ী দাম</b><small>দামের মধ্যে স্টাইল</small></p></div><div><span>↗</span><p><b>সারা বাংলাদেশে</b><small>হোম ডেলিভারি</small></p></div><div><span>✓</span><p><b>Cash on Delivery</b><small>পণ্য পেয়ে পেমেন্ট</small></p></div></section>
+<section class="section categories-section" id="categories"><div class="section-heading"><div><span class="eyebrow">FIND YOUR LOOK</span><h2>ক্যাটাগরি অনুযায়ী <em>শপিং</em></h2></div><p>তোমার পছন্দের স্টাইল বেছে নাও</p></div><div class="category-grid"><button class="category-tile cat-one" data-category="1 Piece"><span>01 / DAILY WEAR</span><strong>ওয়ান পিস</strong><small>Everyday elegance ↗</small></button><button class="category-tile cat-two" data-category="2 Piece"><span>02 / SIGNATURE SETS</span><strong>টু পিস</strong><small>Effortless style ↗</small></button><button class="category-tile cat-three" data-category="New Arrival"><span>03 / JUST ARRIVED</span><strong>নতুন কালেকশন</strong><small>Fresh picks ↗</small></button></div></section>
+<section class="section products-section" id="products"><div class="section-heading"><div><span class="eyebrow">CURATED FOR YOU</span><h2>আমাদের <em>কালেকশন</em></h2></div><div class="product-tools"><input id="product-search" type="search" placeholder="পোশাক খুঁজুন..." aria-label="পণ্য খুঁজুন"><select id="category-filter" aria-label="ক্যাটাগরি"><option value="all">সব পণ্য</option><option value="1 Piece">ওয়ান পিস</option><option value="2 Piece">টু পিস</option><option value="New Arrival">নতুন কালেকশন</option></select></div></div><div class="product-grid" id="product-grid"></div><p class="empty-state" id="empty-state" hidden>এই ক্যাটাগরিতে এখনো পণ্য যোগ করা হয়নি।</p></section>
+<section class="newsletter"><div><span class="eyebrow">A LITTLE NOTE FROM US</span><h2>তোমার পরের প্রিয় পোশাকটি<br>হয়তো এখানেই আছে।</h2><p>পছন্দের ডিজাইন বেছে নাও, অর্ডার করো সহজেই।</p></div><a class="primary-btn" href="#products">শপিং শুরু করুন ↗</a></section>
+</main>
+<footer><a class="brand footer-brand" href="#"><span class="brand-mark">F</span><span>Fashion<span class="brand-pink">Mart</span><small>STYLE THAT FEELS LIKE YOU</small></span></a><p>তোমার স্টাইল, তোমার গল্প।</p><div class="footer-bottom"><span>© <span id="year"></span> Fashion Mart</span><span>Cash on Delivery · Bangladesh</span><a href="admin.html">Admin</a></div></footer>
+<div class="cart-backdrop" id="cart-backdrop"></div><aside class="cart-drawer" id="cart-drawer" aria-label="শপিং কার্ট"><div class="cart-title"><div><span class="eyebrow">YOUR BAG</span><h2>তোমার কার্ট</h2></div><button id="cart-close" class="icon-button" aria-label="বন্ধ করুন">✕</button></div><div id="cart-items" class="cart-items"></div><div class="cart-summary"><div><span>সাবটোটাল</span><strong id="cart-total">৳০</strong></div><small>ডেলিভারি চার্জ ঠিকানার ভিত্তিতে নিশ্চিত করা হবে।</small><button id="checkout-button" class="primary-btn full">অর্ডার করতে এগিয়ে যান ↗</button></div></aside>
+<script src="shop.js"></script>
+</body></html>
