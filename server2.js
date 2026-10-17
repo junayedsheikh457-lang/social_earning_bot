@@ -160,9 +160,10 @@ app.post('/api/admin/notify',admin,async(req,res)=>{try{const{orderId,title,mess
 
 
 const STORE_DIR=path.join(__dirname,'fashion-site');
-const STORE_PRODUCTS=path.join(__dirname,'store-products.json');
-const STORE_SETTINGS=path.join(__dirname,'store-settings.json');
-const STORE_ORDERS=path.join(__dirname,'store-orders.json');
+const STORE_DATA_DIR=process.env.STORE_DATA_DIR||__dirname;
+const STORE_PRODUCTS=path.join(STORE_DATA_DIR,'store-products.json');
+const STORE_SETTINGS=path.join(STORE_DATA_DIR,'store-settings.json');
+const STORE_ORDERS=path.join(STORE_DATA_DIR,'store-orders.json');
 function readStoreFile(file,fallback){try{if(!fs.existsSync(file))fs.writeFileSync(file,JSON.stringify(fallback,null,2));return JSON.parse(fs.readFileSync(file,'utf8'))}catch(e){return fallback}}
 function writeStoreFile(file,value){fs.writeFileSync(file,JSON.stringify(value,null,2));return value}
 function storeDefaults(){return [
