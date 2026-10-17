@@ -31,7 +31,7 @@ const seed=[
 let products=JSON.parse(localStorage.getItem('fm_products')||'null')||seed;
 let cart=JSON.parse(localStorage.getItem('fm_cart')||'[]'),orders=JSON.parse(localStorage.getItem('fm_orders')||'[]'),wishlist=JSON.parse(localStorage.getItem('fm_wish')||'[]'),category='All',current=null,chosenSize='M',chosenColor='Pink',chosenQty=1,toastTimer;
 const img=(id,w=500)=>'https://images.unsplash.com/'+(id.startsWith('photo-')?id:'photo-'+id)+'?auto=format&fit=crop&w='+w+'&q=82';
-function photo(p,i=0,w=500){let v=p.images?.[i]||p.images?.[0]||seed[0].images[0];return v.startsWith('http')?v:img(v,w)}
+function photo(p,i=0,w=500){let v=p.images?.[i]||p.images?.[0]||seed[0].images[0];return v.startsWith('http')||v.startsWith('data:')?v:img(v,w)}
 function save(){localStorage.setItem('fm_products',JSON.stringify(products));localStorage.setItem('fm_cart',JSON.stringify(cart));localStorage.setItem('fm_orders',JSON.stringify(orders));localStorage.setItem('fm_wish',JSON.stringify(wishlist));updateCount()}
 function updateCount(){document.getElementById('cartCount').textContent=cart.reduce((n,x)=>n+x.qty,0)}
 function toast(t){let el=document.getElementById('toast');el.textContent=t;el.style.display='block';clearTimeout(toastTimer);toastTimer=setTimeout(()=>el.style.display='none',2300)}
