@@ -3,6 +3,7 @@ const {Pool}=require('pg');
 const crypto=require('crypto');
 const path=require('path');
 const app=express();
+app.use((req,res,next)=>{res.setHeader('Access-Control-Allow-Origin','https://update-fashion-mart-daf6.onrender.com');res.setHeader('Access-Control-Allow-Methods','GET,POST,PATCH,DELETE,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type,Authorization');if(req.method==='OPTIONS')return res.sendStatus(204);next()});
 app.use(express.json({limit:'15mb'}));
 const pool=new Pool({connectionString:process.env.DATABASE_URL,ssl:process.env.DATABASE_URL?.includes('render.com')?{rejectUnauthorized:false}:undefined});
 const ADMIN_PASSWORD=process.env.ADMIN_PASSWORD;
